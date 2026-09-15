@@ -39,6 +39,11 @@ type Hub struct {
 	channelID     string
 	log           *slog.Logger
 
+	// onEvent is called whenever a post lands in the shared channel, so the
+	// API can drop its cached view of it. Without this the browser refetches
+	// on the WebSocket signal and gets the pre-post snapshot back.
+	onEvent func()
+
 	mu    sync.Mutex
 	users map[int64]*userStream
 }
@@ -221,6 +226,9 @@ func (h *Hub) connect(ctx context.Context, userID int64, token string) error {
 		_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
 
 		event, ok := h.translate(frame.Event, frame.Data)
+		if ok && h.onEvent != nil {
+			h.onEvent()
+		}
 		h.log.Debug("mattermost frame", "event", frame.Event, "relayed", ok)
 		if ok {
 			h.broadcast(userID, event)
@@ -315,3 +323,7 @@ func websocketURL(base string) (string, error) {
 	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/api/v4/websocket"
 	return parsed.String(), nil
 }
+
+// OnChannelEvent registers a callback fired whenever a post in the shared
+// channel is created, edited or deleted. Set it before any Subscribe call.
+func (h *Hub) OnChannelEvent(fn func()) { h.onEvent = fn }

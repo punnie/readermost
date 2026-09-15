@@ -6,6 +6,9 @@ import type { Tree } from "../types";
 
 interface Props {
   tree?: Tree;
+  /** Prefilled feed URL, when subscribing from a shared item. */
+  initialFeedUrl?: string;
+  initialTitle?: string;
   onClose: () => void;
 }
 
@@ -19,11 +22,11 @@ interface Candidate {
  * Adding a subscription. Miniflux's own discovery turns a homepage URL into the
  * feeds it advertises, so pasting "example.com" works as well as a feed URL.
  */
-export function AddSubscription({ tree, onClose }: Props) {
+export function AddSubscription({ tree, initialFeedUrl, initialTitle, onClose }: Props) {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialFeedUrl ?? "");
   const [candidates, setCandidates] = useState<Candidate[]>();
   const [categoryId, setCategoryId] = useState<number | undefined>(
     tree?.categories[0]?.id,
@@ -94,7 +97,7 @@ export function AddSubscription({ tree, onClose }: Props) {
       }}
     >
       <div className="dialog" role="dialog" aria-modal="true">
-        <h3>Add subscription</h3>
+        <h3>{initialTitle ? `Subscribe to ${initialTitle}` : "Add subscription"}</h3>
 
         <input
           ref={inputRef}
@@ -166,7 +169,16 @@ export function AddSubscription({ tree, onClose }: Props) {
           <button
             className="btn btn-primary"
             disabled={busy || !url.trim()}
-            onClick={() => discover.mutate(url.trim())}
+            onClick={() => {
+              const target = url.trim();
+              // A feed URL handed to us from a share is already exact;
+              // discovery would only be a wasted round trip.
+              if (initialFeedUrl && target === initialFeedUrl) {
+                subscribe.mutate(target);
+              } else {
+                discover.mutate(target);
+              }
+            }}
           >
             {busy ? "Working…" : "Add"}
           </button>

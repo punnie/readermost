@@ -2,6 +2,7 @@ import type { Selection, Tree } from "../types";
 
 interface Props {
   tree?: Tree;
+  riverUnread: number;
   selection: Selection;
   onSelect: (selection: Selection) => void;
   collapsed: Set<number>;
@@ -13,6 +14,7 @@ interface Props {
  * which is also what Google Reader's folders were.
  */
 export function Sidebar({
+  riverUnread,
   tree,
   selection,
   onSelect,
@@ -29,11 +31,14 @@ export function Sidebar({
     <nav className="pane sidebar">
       <div className="nav-section">
         <button
-          className={`nav-item ${isSelected({ kind: "shared" }) ? "selected" : ""}`}
+          className={`nav-item ${isSelected({ kind: "shared" }) ? "selected" : ""} ${
+            riverUnread > 0 ? "has-unread" : ""
+          }`}
           onClick={() => onSelect({ kind: "shared" })}
         >
           <span className="twisty" />
           <span className="label">Shared by friends</span>
+          {riverUnread > 0 && <span className="count">{riverUnread}</span>}
         </button>
       </div>
 

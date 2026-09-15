@@ -33,9 +33,10 @@ type Server struct {
 	mm   *mattermost.Client
 	hub  *hub.Hub
 
-	// shares caches which articles already have a discussion.
-	shares shareIndex
-	log    *slog.Logger
+	// channel is the cached view of the shared channel that every river
+	// feature reads from.
+	channel channelSnapshot
+	log     *slog.Logger
 }
 
 // New builds the API server.
@@ -83,7 +84,11 @@ func (s *Server) Routes() *http.ServeMux {
 	// Sharing
 	mux.Handle("GET /api/shared", s.protected(s.handleSharedRiver))
 	mux.Handle("POST /api/share", s.mutating(s.handleShare))
+	mux.Handle("GET /api/users/{id}/avatar", s.protected(s.handleAvatar))
 	mux.Handle("GET /api/shared/lookup", s.protected(s.handleLookupShare))
+	mux.Handle("GET /api/shared/{id}/article", s.protected(s.handleArticle))
+	mux.Handle("POST /api/shared/{id}/read", s.mutating(s.handleMarkRiverRead))
+	mux.Handle("POST /api/shared/read-all", s.mutating(s.handleMarkRiverReadAll))
 	mux.Handle("GET /api/shared/{id}/thread", s.protected(s.handleThread))
 	mux.Handle("POST /api/shared/{id}/comment", s.mutating(s.handleComment))
 

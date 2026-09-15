@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -142,4 +143,41 @@ func newAPIError(resp *http.Response) error {
 		apiErr.ID = decoded.ID
 	}
 	return apiErr
+}
+
+// doRaw issues a request and hands back the live response for streaming bodies
+// such as profile images. The caller must close resp.Body.
+func (c *Client) doRaw(ctx context.Context, method, path string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("mattermost: build request: %w", err)
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("mattermost: %s %s: %w", method, path, err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, newAPIError(resp)
+	}
+	return resp, nil
+}
+
+// UserImage streams a user's profile picture. Mattermost always returns
+// something — it generates a coloured initial when no picture is set — so this
+// never needs a placeholder of its own.
+func (c *Client) UserImage(ctx context.Context, userID string) (io.ReadCloser, string, error) {
+	resp, err := c.doRaw(ctx, http.MethodGet, "/api/v4/users/"+url.PathEscape(userID)+"/image")
+	if err != nil {
+		return nil, "", err
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/png"
+	}
+	return resp.Body, contentType, nil
 }

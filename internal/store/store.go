@@ -73,6 +73,41 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS sessions_user_idx    ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS sessions_expires_idx ON sessions(expires_at);
+
+-- Article text for shared links, so a shared article is readable whether or not
+-- the reader subscribes to the feed it came from. The sharer always has the
+-- full text in their own Miniflux account, so it is copied here when they share.
+--
+-- Rows are keyed by URL alone and readable by every user. That is sound only
+-- while feeds are public, which is Readermost's current assumption: there is no
+-- private-feed support. Adding one means adding an access check here.
+CREATE TABLE IF NOT EXISTS shared_content (
+  url          TEXT    PRIMARY KEY,
+  title        TEXT    NOT NULL DEFAULT '',
+  author       TEXT    NOT NULL DEFAULT '',
+  feed_title   TEXT    NOT NULL DEFAULT '',
+  feed_url     TEXT    NOT NULL DEFAULT '',
+  site_url     TEXT    NOT NULL DEFAULT '',
+  content      TEXT    NOT NULL,
+  published_at INTEGER,
+  reading_time INTEGER NOT NULL DEFAULT 0,
+  stored_at    INTEGER NOT NULL
+);
+
+-- Per-user read state for the river. Feed read state belongs to Miniflux; the
+-- river is Readermost's own, so it lives here.
+--
+-- A missing row means unread. Reading is permanent: a new comment shows as a
+-- badge rather than making the item unread again.
+CREATE TABLE IF NOT EXISTS river_reads (
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  post_id       TEXT    NOT NULL,
+  read_at       INTEGER NOT NULL,
+  seen_reply_at INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, post_id)
+);
+
+CREATE INDEX IF NOT EXISTS river_reads_user_idx ON river_reads(user_id);
 `
 
 // Open connects to the SQLite database at path and applies the schema.

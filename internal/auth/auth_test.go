@@ -66,8 +66,9 @@ func (f *fakeMiniflux) server(t *testing.T) *httptest.Server {
 		f.createCalls = append(f.createCalls, body.Username)
 
 		if _, taken := f.existingUsers[body.Username]; taken {
-			writeJSON(w, http.StatusConflict, map[string]string{
-				"error_message": "user already exists",
+			// Miniflux reports a duplicate username as 400, not 409.
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error_message": "This user already exists.",
 			})
 			return
 		}

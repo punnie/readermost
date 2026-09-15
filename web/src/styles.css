@@ -286,6 +286,7 @@ a {
 
 .entry-meta {
   display: flex;
+  align-items: center;
   gap: 6px;
   font-size: 11px;
   color: var(--text-faint);
@@ -367,54 +368,13 @@ a {
 
 /* ---------- shared river ---------- */
 
-.river {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 8px 0 64px;
-}
 
-.shared-item {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-raised);
-  padding: 14px 16px;
-  margin: 12px 16px;
-}
 
-.shared-item.focused {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
-}
 
-.shared-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
 
-.shared-head .author {
-  font-weight: 700;
-  color: var(--text);
-  font-size: 13px;
-}
 
-.shared-head .when {
-  flex: 1;
-}
 
-.shared-head .permalink {
-  font-size: 11px;
-  text-decoration: none;
-  opacity: 0.75;
-}
 
-.shared-head .permalink:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
 
 .shared-note {
   margin: 0 0 10px;
@@ -435,10 +395,6 @@ a {
   color: inherit;
 }
 
-.shared-card:hover {
-  border-left-color: var(--accent);
-  background: var(--bg-hover);
-}
 
 .shared-card .title {
   font-weight: 700;
@@ -452,17 +408,6 @@ a {
   color: var(--text-faint);
 }
 
-.shared-card .excerpt {
-  margin: 7px 0 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  /* Keep every card the same shape however long the excerpt runs. */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 
 .thread {
   margin-top: 12px;
@@ -475,29 +420,9 @@ a {
   margin-bottom: 8px;
 }
 
-.thread-message {
-  margin-bottom: 9px;
-}
 
-.thread-message .meta {
-  display: flex;
-  gap: 7px;
-  align-items: baseline;
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-bottom: 1px;
-}
 
-.thread-message .meta strong {
-  color: var(--text);
-  font-size: 12px;
-}
 
-.thread-message .body {
-  white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.5;
-}
 
 .comment-form {
   display: flex;
@@ -520,16 +445,6 @@ a {
   outline-offset: -1px;
 }
 
-/* Shown on an article that already has a discussion. */
-.shared-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-sunken);
-  border-left: 3px solid var(--accent);
-  padding: 7px 10px;
-  border-radius: 0 4px 4px 0;
-  margin-bottom: 16px;
-}
 
 /* ---------- dialogs, states ---------- */
 
@@ -623,4 +538,179 @@ a {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   justify-self: start;
+}
+
+/* ---------- avatars ---------- */
+
+.avatar {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-hover);
+  vertical-align: middle;
+}
+
+/* Sits underneath the image, so a failed load degrades to an initial
+   rather than a broken-image icon. */
+.avatar-initial {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  user-select: none;
+}
+
+.avatar img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- thread messages ---------- */
+
+.thread-message {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.thread-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.thread-message .meta {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 1px;
+}
+
+.thread-message .meta strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.thread-message .body {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+/* ---------- discussion under an article ---------- */
+
+.article-discussion {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 2px solid var(--border);
+}
+
+.article-discussion h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.discussion-origin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
+
+.discussion-origin a {
+  margin-left: auto;
+  font-size: 11px;
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.discussion-origin a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.article-discussion .thread {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+}
+
+.discussion-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.discussion-empty p {
+  margin: 0 0 10px;
+}
+
+/* ---------- shared view ---------- */
+
+.shared-row .entry-title {
+  /* A shared link is always worth reading; nothing here is "already read". */
+  font-weight: 700;
+  color: var(--unread);
+}
+
+.reply-badge {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: 8px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  min-width: 15px;
+  text-align: center;
+}
+
+/* Who shared it, above the article in the reading pane. */
+.shared-by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-sunken);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+}
+
+.shared-by a {
+  margin-left: auto;
+  font-size: 11px;
+  text-decoration: none;
+  opacity: 0.8;
+}
+
+.shared-by a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.not-subscribed {
+  color: var(--text-faint);
+  font-size: 12.5px;
+  font-style: italic;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 14px;
 }

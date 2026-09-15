@@ -1,3 +1,7 @@
+import { useEffect, useRef } from "react";
+
+import { Avatar } from "./Avatar";
+import { Thread } from "./Thread";
 import type { Entry, ShareLookup } from "../types";
 
 interface Props {
@@ -5,6 +9,8 @@ interface Props {
   /** Existing discussion for this article, if the channel already has one. */
   discussion?: ShareLookup;
   discussionLoading: boolean;
+  /** Bump to reveal and focus the discussion, e.g. right after sharing. */
+  focusDiscussion?: number;
   onToggleStar: (id: number) => void;
   onToggleRead: (entry: Entry) => void;
   onShare: (entry: Entry) => void;
@@ -15,11 +21,20 @@ export function EntryView({
   entry,
   discussion,
   discussionLoading,
+  focusDiscussion = 0,
   onToggleStar,
   onToggleRead,
   onShare,
   onDiscuss,
 }: Props) {
+  const discussionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (focusDiscussion > 0) {
+      discussionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusDiscussion]);
+
   if (!entry) {
     return (
       <div className="pane reader">
@@ -31,7 +46,10 @@ export function EntryView({
   }
 
   const published = new Date(entry.published_at);
-  const replies = discussion?.reply_count ?? 0;
+  const shared = discussion?.shared ? discussion : undefined;
+  const replies = shared?.reply_count ?? 0;
+  const sharerName =
+    shared?.author?.display_name || shared?.author?.username || "someone";
 
   return (
     <div className="pane reader">
@@ -50,14 +68,11 @@ export function EntryView({
         </div>
 
         <div className="article-actions">
-          {discussion?.shared ? (
-            <button
-              className="btn btn-primary"
-              onClick={() => onDiscuss(discussion.post_id!)}
-            >
+          {shared ? (
+            <button className="btn" onClick={() => onDiscuss(shared.post_id!)}>
               {replies > 0
-                ? `Discuss — ${replies} comment${replies === 1 ? "" : "s"}`
-                : "Discuss"}
+                ? `${replies} comment${replies === 1 ? "" : "s"} in the river`
+                : "Show in the river"}
             </button>
           ) : (
             <button
@@ -80,22 +95,6 @@ export function EntryView({
           </a>
         </div>
 
-        {discussion?.shared && (
-          <div className="shared-hint">
-            Shared by{" "}
-            <strong>
-              {discussion.author?.display_name || discussion.author?.username || "someone"}
-            </strong>
-            {discussion.created_at
-              ? ` on ${new Date(discussion.created_at).toLocaleDateString()}`
-              : null}
-            .{" "}
-            <a href={discussion.permalink} target="_blank" rel="noreferrer noopener">
-              Open in Mattermost
-            </a>
-          </div>
-        )}
-
         {/*
           Feed HTML is rendered as-is because Miniflux sanitises entry content
           server-side before it is ever stored. This app must never render
@@ -105,6 +104,55 @@ export function EntryView({
           className="article-body"
           dangerouslySetInnerHTML={{ __html: entry.content }}
         />
+
+        {/*
+          The discussion lives with the article, so reading and arguing do not
+          need two different places in the app.
+        */}
+        <section className="article-discussion" ref={discussionRef}>
+          <h3>Discussion</h3>
+
+          {shared ? (
+            <>
+              <div className="discussion-origin">
+                <Avatar userId={shared.author!.user_id} name={sharerName} size={22} />
+                <span>
+                  Shared by <strong>{sharerName}</strong>
+                  {shared.created_at
+                    ? ` on ${new Date(shared.created_at).toLocaleDateString()}`
+                    : null}
+                </span>
+                <a href={shared.permalink} target="_blank" rel="noreferrer noopener">
+                  Mattermost ↗
+                </a>
+              </div>
+
+              <Thread
+                postId={shared.post_id!}
+                replyCount={replies}
+                expandedByDefault
+                focusSignal={focusDiscussion}
+                placeholder={replies ? "Reply…" : "Say something about this…"}
+              />
+            </>
+          ) : (
+            <div className="discussion-empty">
+              {discussionLoading ? (
+                "Checking the channel…"
+              ) : (
+                <>
+                  <p>
+                    Nobody has shared this yet. Share it to start a discussion your
+                    friends can join — here or in Mattermost.
+                  </p>
+                  <button className="btn btn-primary" onClick={() => onShare(entry)}>
+                    Share to Mattermost
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </section>
       </article>
     </div>
   );

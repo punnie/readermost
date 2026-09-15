@@ -24,14 +24,43 @@ Mattermost's permissions apply for free and posts are genuinely authored by the
 person who shared them. Only Miniflux account creation uses a privileged
 credential.
 
-### Why there is a local database
+### What lives where
 
-Miniflux has no act-on-behalf-of-user API, and API keys are self-service only —
-an admin cannot mint one for someone else. So Readermost generates a random
-password for each provisioned Miniflux account, stores it encrypted (AES-GCM),
-and talks to Miniflux as that user over HTTP Basic. The SQLite file holds only
-users and sessions; **shared links and comments are not stored** — Mattermost is
-the source of truth, with share metadata living in each post's `props` bag.
+**Miniflux owns feeds**: subscriptions, fetching, article text, and per-article
+read and starred state. **Mattermost owns the conversation**: every shared link
+is a post and every comment a reply, with share metadata in the post's `props`
+bag. Neither is a copy — both are the source of truth for their half.
+
+**Readermost owns the river**, and its SQLite file holds four things:
+
+- **Users and sessions.** Miniflux has no act-on-behalf-of-user API, and API
+  keys are self-service only — an admin cannot mint one for someone else. So
+  Readermost generates a random password for each provisioned Miniflux account,
+  stores it encrypted (AES-GCM), and talks to Miniflux as that user over Basic
+  auth.
+- **Cached article text** for shared links. A shared link carries only a URL,
+  and Miniflux entry IDs are per-user, so without this a friend's share is
+  unreadable unless you happen to follow the same feed. The sharer always has
+  the full text, so it is copied at share time.
+- **River read state**, per user. Feed read state is Miniflux's; the river is
+  not something Miniflux knows about at all.
+
+> The article cache is keyed by URL alone and readable by every user. That is
+> sound only while feeds are public, which is the current assumption —
+> Readermost has no private-feed support. Adding one means adding an access
+> check on that table.
+
+### Two upstream limits worth knowing
+
+Neither Mattermost nor Miniflux indexes URLs in search — a full URL and a
+hyphenated slug both match nothing, while titles match fine. So two questions
+are answered by scanning and comparing rather than querying:
+
+- *Has this been shared?* — from a cached snapshot of the channel, rebuilt when
+  a post arrives and at most every 30 seconds. It reaches back 600 posts, which
+  is also the river's horizon: older shares fall off the list.
+- *Do I have this article?* — by searching Miniflux for the title and confirming
+  on the URL.
 
 ## Setup
 
@@ -103,7 +132,11 @@ A round trip worth doing once, because it exercises every seam at once:
    authored by you, with the article rendered as a link.
 4. Reply from Mattermost. The comment shows up in Readermost without a refresh.
 5. Paste a bare URL into the channel from Mattermost — it appears in the river
-   too, because the channel is the source of truth, not Readermost.
+   too, because the channel is where shared links live. Post a message with no
+   link and confirm it does *not*: that is chat, not a shared article.
+6. Subscribe `friend` to a feed `admin` does not have and share from it. As
+   `admin`, confirm the full text still renders, and that Subscribe puts the
+   feed in the folder you choose.
 
 ```sh
 dev/down.sh            # stop, keep data

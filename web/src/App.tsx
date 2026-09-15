@@ -13,7 +13,8 @@ import {
 } from "./hooks";
 import { EntryList } from "./components/EntryList";
 import { EntryView } from "./components/EntryView";
-import { SharedRiver } from "./components/SharedRiver";
+import { SharedList } from "./components/SharedList";
+import { SharedArticle } from "./components/SharedArticle";
 import { ShareDialog } from "./components/ShareDialog";
 import { Shortcuts } from "./components/Shortcuts";
 import { Sidebar } from "./components/Sidebar";
@@ -21,7 +22,7 @@ import { Welcome } from "./components/Welcome";
 import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
 import { useLiveUpdates } from "./useLiveUpdates";
-import type { Entry, Selection } from "./types";
+import type { Entry, Selection, SharedRiver } from "./types";
 
 function SignIn() {
   return (
@@ -65,12 +66,27 @@ export function App() {
   const [sharing, setSharing] = useState<Entry>();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  // Set when subscribing from a shared item, to prefill the folder picker.
+  const [subscribeTo, setSubscribeTo] = useState<{ feedUrl: string; feedTitle: string }>();
   const [showSettings, setShowSettings] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
-  const [focusSharedPost, setFocusSharedPost] = useState<string>();
+  const [selectedSharedPost, setSelectedSharedPost] = useState<string>();
+  // Set after sharing, to scroll the article's discussion into view and focus it.
+  const [focusDiscussion, setFocusDiscussion] = useState(0);
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
+
+  // The shared river is a list like any other, so App owns it and the two panes
+  // read from the same data.
+  const shared = useQuery({
+    queryKey: ["shared"],
+    queryFn: () => api.shared(),
+    // Always loaded, not just in the shared view: the sidebar badge needs it.
+  });
+  const sharedItems = useMemo(() => shared.data?.items ?? [], [shared.data]);
+  const selectedSharedItem =
+    sharedItems.find((item) => item.post_id === selectedSharedPost) ?? sharedItems[0];
 
   const entries = useEntries(selection);
   const setStatus = useSetStatus(selection);
@@ -88,10 +104,45 @@ export function App() {
     staleTime: 15_000,
   });
 
-  const openDiscussion = useCallback((postId: string) => {
-    setFocusSharedPost(postId);
-    setSelection({ kind: "shared" });
-  }, []);
+  /**
+   * Select a river item and mark it read.
+   *
+   * The cache is written before the request goes out, mirroring openEntry —
+   * that is what keeps j/k through the river feeling immediate.
+   */
+  const openShared = useCallback(
+    (postID: string) => {
+      setSelectedSharedPost(postID);
+
+      const current = queryClient.getQueryData<SharedRiver>(["shared"]);
+      const item = current?.items.find((candidate) => candidate.post_id === postID);
+      if (!item || (item.read && item.unseen_replies === 0)) return;
+
+      queryClient.setQueryData<SharedRiver>(["shared"], (old) =>
+        old
+          ? {
+              ...old,
+              unread: item.read ? old.unread : Math.max(0, old.unread - 1),
+              items: old.items.map((candidate) =>
+                candidate.post_id === postID
+                  ? { ...candidate, read: true, unseen_replies: 0 }
+                  : candidate,
+              ),
+            }
+          : old,
+      );
+      void api.markRiverRead(postID);
+    },
+    [queryClient],
+  );
+
+  const openDiscussion = useCallback(
+    (postId: string) => {
+      openShared(postId);
+      setSelection({ kind: "shared" });
+    },
+    [openShared],
+  );
 
   // Marking read is batched: flicking through with j should cost one request,
   // not one per article.
@@ -140,14 +191,31 @@ export function App() {
 
   const move = useCallback(
     (delta: number) => {
+      // The shared view is a list like any other, so j/k walks it the same way.
+      if (selection.kind === "shared") {
+        if (sharedItems.length === 0) return;
+        const current = sharedItems.findIndex(
+          (item) => item.post_id === selectedSharedItem?.post_id,
+        );
+        const next =
+          current === -1 ? 0 : Math.min(Math.max(current + delta, 0), sharedItems.length - 1);
+        const item = sharedItems[next];
+        if (item) openShared(item.post_id);
+        return;
+      }
+
       if (list.length === 0) return;
       const current = list.findIndex((entry) => entry.id === selectedEntryId);
       const next = current === -1 ? 0 : Math.min(Math.max(current + delta, 0), list.length - 1);
       const entry = list[next];
       if (entry) openEntry(entry);
     },
-    [list, selectedEntryId, openEntry],
+    [selection.kind, sharedItems, selectedSharedItem, openShared, list, selectedEntryId, openEntry],
   );
+
+  /** The link the keyboard should open, whichever view is active. */
+  const currentURL =
+    selection.kind === "shared" ? selectedSharedItem?.link?.url : selectedEntry?.url;
 
   // `g` is a prefix: g then u/a/s jumps between views.
   const pendingGoto = useRef(false);
@@ -155,9 +223,9 @@ export function App() {
   useKeyboard({
     j: () => move(1),
     k: () => move(-1),
-    o: () => selectedEntry && window.open(selectedEntry.url, "_blank", "noopener"),
-    Enter: () => selectedEntry && window.open(selectedEntry.url, "_blank", "noopener"),
-    v: () => selectedEntry && window.open(selectedEntry.url, "_blank", "noopener"),
+    o: () => currentURL && window.open(currentURL, "_blank", "noopener"),
+    Enter: () => currentURL && window.open(currentURL, "_blank", "noopener"),
+    v: () => currentURL && window.open(currentURL, "_blank", "noopener"),
     s: () => selectedEntry && toggleStar.mutate(selectedEntry.id),
     S: () => {
       if (!selectedEntry) return;
@@ -181,6 +249,13 @@ export function App() {
       });
     },
     A: () => {
+      if (selection.kind === "shared") {
+        void api.markRiverReadAll().then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["shared"] });
+        });
+        return;
+      }
+
       const scope =
         selection.kind === "category"
           ? { scope: "category" as const, id: selection.id }
@@ -242,6 +317,18 @@ export function App() {
         <button className="btn" onClick={() => void api.refreshAll()}>
           Refresh
         </button>
+        {selection.kind === "shared" && (
+          <button
+            className="btn"
+            onClick={() => {
+              void api.markRiverReadAll().then(() => {
+                void queryClient.invalidateQueries({ queryKey: ["shared"] });
+              });
+            }}
+          >
+            Mark all read
+          </button>
+        )}
         <button className="btn" onClick={() => setShowAdd(true)}>
           + Subscribe
         </button>
@@ -266,6 +353,7 @@ export function App() {
       <Sidebar
         tree={tree.data}
         selection={selection}
+        riverUnread={shared.data?.unread ?? 0}
         onSelect={setSelection}
         collapsed={collapsed}
         onToggleCollapse={(id) =>
@@ -282,12 +370,19 @@ export function App() {
       />
 
       {selection.kind === "shared" ? (
-        <div className="pane entry-list" style={{ gridColumn: "2 / -1" }}>
-          <SharedRiver
-            focusPostId={focusSharedPost}
-            onFocusHandled={() => setFocusSharedPost(undefined)}
+        <>
+          <SharedList
+            items={sharedItems}
+            selectedId={selectedSharedItem?.post_id}
+            onSelect={(item) => openShared(item.post_id)}
+            isLoading={shared.isLoading}
           />
-        </div>
+          <SharedArticle
+            item={selectedSharedItem}
+            tree={tree.data}
+            onSubscribe={(feedUrl, feedTitle) => setSubscribeTo({ feedUrl, feedTitle })}
+          />
+        </>
       ) : (
         <>
           <EntryList
@@ -308,6 +403,7 @@ export function App() {
             }
             discussion={discussion.data}
             discussionLoading={discussion.isLoading}
+            focusDiscussion={focusDiscussion}
             onShare={setSharing}
             onDiscuss={openDiscussion}
           />
@@ -319,20 +415,31 @@ export function App() {
           entry={sharing}
           onCancel={() => setSharing(undefined)}
           onShare={async (message) => {
-            const created = await api.share(sharing.id, message);
+            await api.share(sharing.id, message);
             setSharing(undefined);
             void queryClient.invalidateQueries({ queryKey: ["shared"] });
+            // Refetching the lookup is what makes the discussion panel appear
+            // in place, below the article the user is still reading.
             void queryClient.invalidateQueries({ queryKey: ["share-lookup"] });
 
-            // Drop the user into the discussion they just started, rather than
-            // leaving them on the article wondering whether it worked.
-            setFocusSharedPost(created.post_id);
-            setSelection({ kind: "shared" });
+            // Stay on the article and open its discussion, ready for a first
+            // comment. Bumping a counter re-triggers the scroll and focus even
+            // if the same article is shared again later.
+            setFocusDiscussion((count) => count + 1);
           }}
         />
       )}
 
       {showAdd && <AddSubscription tree={tree.data} onClose={() => setShowAdd(false)} />}
+
+      {subscribeTo && (
+        <AddSubscription
+          tree={tree.data}
+          initialFeedUrl={subscribeTo.feedUrl}
+          initialTitle={subscribeTo.feedTitle}
+          onClose={() => setSubscribeTo(undefined)}
+        />
+      )}
 
       {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
 

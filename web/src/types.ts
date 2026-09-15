@@ -64,6 +64,7 @@ export interface SharedAuthor {
 }
 
 export interface SharedLink {
+  feed_url?: string;
   url: string;
   title?: string;
   feed_title?: string;
@@ -79,14 +80,18 @@ export interface SharedItem {
   created_at: number;
   message: string;
   reply_count: number;
+  /** River read state is Readermost's own; Miniflux knows nothing of it. */
+  read: boolean;
+  unseen_replies: number;
   author: SharedAuthor;
   link?: SharedLink;
   permalink: string;
 }
 
 export interface SharedRiver {
+  unread: number;
   items: SharedItem[];
-  before?: string;
+
 }
 
 export interface ThreadMessage {
@@ -114,4 +119,25 @@ export interface ShareLookup {
   permalink?: string;
   created_at?: number;
   author?: SharedAuthor;
+}
+
+/** Where a shared article's text came from. */
+export type ContentSource = "subscription" | "cache" | "none";
+
+/** A shared article, resolved for the current reader. */
+export interface SharedArticleData {
+  post_id: string;
+  url: string;
+  title: string;
+  author?: string;
+  feed_title?: string;
+  feed_url?: string;
+  site_url?: string;
+  published_at?: string;
+  reading_time?: number;
+  content: string;
+  /** Present only when the reader subscribes, enabling star and mark-read. */
+  entry_id?: number;
+  subscribed: boolean;
+  content_source: ContentSource;
 }

@@ -2,6 +2,7 @@ import type {
   Entry,
   EntryResultSet,
   Me,
+  SharedArticleData,
   SharedItem,
   SharedRiver,
   ShareLookup,
@@ -179,10 +180,19 @@ export const api = {
   lookupShare: (url: string) =>
     request<ShareLookup>(`/api/shared/lookup?url=${encodeURIComponent(url)}`),
 
-  shared: (before?: string) =>
-    request<SharedRiver>(
-      `/api/shared${before ? `?before=${encodeURIComponent(before)}` : ""}`,
-    ),
+  shared: () => request<SharedRiver>("/api/shared"),
+
+  sharedArticle: (postId: string) =>
+    request<SharedArticleData>(`/api/shared/${postId}/article`),
+
+  markRiverRead: (postId: string, read = true) =>
+    request<void>(`/api/shared/${postId}/read`, {
+      method: "POST",
+      body: JSON.stringify({ read }),
+    }),
+
+  markRiverReadAll: () =>
+    request<void>("/api/shared/read-all", { method: "POST" }),
 
   share: (entryId: number, message: string) =>
     request<SharedItem>("/api/share", {

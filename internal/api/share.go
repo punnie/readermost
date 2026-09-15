@@ -16,7 +16,7 @@ import (
 )
 
 // urlPattern finds the first link in a post written by hand in Mattermost, so
-// links pasted straight into the channel still render as shared items.
+// links pasted straight into the channel still become river items.
 var urlPattern = regexp.MustCompile(`https?://[^\s<>"'\x60)\]]+`)
 
 type sharedAuthor struct {
@@ -29,6 +29,7 @@ type sharedLink struct {
 	URL         string `json:"url"`
 	Title       string `json:"title,omitempty"`
 	FeedTitle   string `json:"feed_title,omitempty"`
+	FeedURL     string `json:"feed_url,omitempty"`
 	FeedSiteURL string `json:"feed_site_url,omitempty"`
 	Author      string `json:"author,omitempty"`
 	PublishedAt string `json:"published_at,omitempty"`
@@ -45,72 +46,76 @@ type sharedItem struct {
 	Author     sharedAuthor `json:"author"`
 	Link       *sharedLink  `json:"link,omitempty"`
 	Permalink  string       `json:"permalink"`
+
+	// Read state is Readermost's own: Miniflux knows nothing about the river.
+	Read          bool `json:"read"`
+	UnseenReplies int  `json:"unseen_replies"`
 }
 
 type sharedRiverResponse struct {
 	Items  []sharedItem `json:"items"`
-	Before string       `json:"before,omitempty"` // cursor for the next page
+	Unread int          `json:"unread"`
 }
 
-// handleSharedRiver renders the configured channel as the shared-links river.
-//
-// The channel is the source of truth: Readermost stores nothing about shares, so
-// a link pasted directly into Mattermost appears here alongside one shared from
-// the reader.
+// handleSharedRiver lists the shared channel as articles, annotated with this
+// reader's read state.
 func (s *Server) handleSharedRiver(w http.ResponseWriter, r *http.Request, identity *auth.Identity) error {
 	ctx := r.Context()
 	client := identity.Mattermost(s.mm)
 
-	perPage := 30
+	limit := 100
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		value, err := strconv.Atoi(raw)
-		if err != nil || value <= 0 || value > 100 {
-			return errBadRequest("limit must be between 1 and 100")
+		if err != nil || value <= 0 || value > 500 {
+			return errBadRequest("limit must be between 1 and 500")
 		}
-		perPage = value
+		limit = value
 	}
 
-	list, err := client.ChannelPosts(ctx, s.cfg.Mattermost.SharedChannelID, mattermost.ChannelPostOptions{
-		PerPage: perPage,
-		Before:  r.URL.Query().Get("before"),
-	})
+	snapshot, err := s.snapshot(ctx, client)
 	if err != nil {
 		return err
 	}
 
-	posts := list.Ordered()
-	items := make([]sharedItem, 0, len(posts))
-	authorIDs := make(map[string]struct{}, len(posts))
-
-	// Mattermost only fills reply_count on the thread endpoint — on a channel
-	// listing it is always zero — so count the replies carried in this page.
-	// Replies older than the page window are missed, which understates busy old
-	// threads but is right for everything recent.
-	replyCounts := make(map[string]int)
-	for _, post := range list.Posts {
-		if post.RootID != "" && post.DeleteAt == 0 {
-			replyCounts[post.RootID]++
-		}
+	reads, err := s.store().RiverReads(ctx, identity.User.ID)
+	if err != nil {
+		return err
 	}
 
-	for _, post := range posts {
-		// Replies belong to their thread, not the river; system messages and
-		// tombstones are noise.
-		if post.RootID != "" || post.DeleteAt != 0 || post.IsSystemMessage() {
-			continue
-		}
+	roots := snapshot.roots
+	if len(roots) > limit {
+		roots = roots[:limit]
+	}
+
+	items := make([]sharedItem, 0, len(roots))
+	authorIDs := make(map[string]struct{}, len(roots))
+	unread := 0
+
+	for _, root := range roots {
+		read, seen := reads[root.PostID]
 
 		item := sharedItem{
-			PostID:     post.ID,
-			CreatedAt:  post.CreateAt,
-			Message:    post.Message,
-			ReplyCount: replyCounts[post.ID],
-			Author:     sharedAuthor{UserID: post.UserID},
-			Permalink:  s.mm.BaseURL() + "/_redirect/pl/" + post.ID,
-			Link:       linkFromPost(post),
+			PostID:     root.PostID,
+			CreatedAt:  root.CreateAt,
+			Message:    root.Message,
+			ReplyCount: root.ReplyCount,
+			Author:     sharedAuthor{UserID: root.UserID},
+			Link:       root.Link,
+			Permalink:  s.mm.BaseURL() + "/_redirect/pl/" + root.PostID,
+			Read:       seen,
 		}
+
+		if seen {
+			// Reading is permanent; new comments show as a badge instead of
+			// putting the item back in bold.
+			item.UnseenReplies = countNewerReplies(root, read.SeenReplyAt)
+		} else {
+			item.UnseenReplies = root.ReplyCount
+			unread++
+		}
+
 		items = append(items, item)
-		authorIDs[post.UserID] = struct{}{}
+		authorIDs[root.UserID] = struct{}{}
 	}
 
 	if err := s.resolveAuthors(ctx, client, items, authorIDs); err != nil {
@@ -118,23 +123,36 @@ func (s *Server) handleSharedRiver(w http.ResponseWriter, r *http.Request, ident
 		s.log.Warn("resolve post authors failed", "error", err)
 	}
 
-	response := sharedRiverResponse{Items: items}
-	if len(posts) > 0 {
-		response.Before = posts[len(posts)-1].ID
-	}
-
-	s.writeJSON(w, http.StatusOK, response)
+	s.writeJSON(w, http.StatusOK, sharedRiverResponse{Items: items, Unread: unread})
 	return nil
 }
 
+// countNewerReplies estimates how many replies arrived after the reader last
+// looked.
+//
+// The snapshot keeps a reply count and the newest reply's timestamp, not every
+// timestamp — so when the newest reply predates the last visit there is nothing
+// new, and otherwise at least one reply is. Keeping per-reply timestamps for
+// every thread would cost far more than the badge is worth.
+func countNewerReplies(root *rootPost, seenReplyAt int64) int {
+	if root.ReplyCount == 0 || root.LastReplyAt <= seenReplyAt {
+		return 0
+	}
+	if seenReplyAt == 0 {
+		return root.ReplyCount
+	}
+	return 1
+}
+
 // linkFromPost prefers Readermost's own metadata and falls back to the first URL
-// in the message text.
+// in the message text. A post with neither is chat, not a shared article.
 func linkFromPost(post *mattermost.Post) *sharedLink {
 	if shared, ok := post.SharedLink(); ok {
 		return &sharedLink{
 			URL:            shared.EntryURL,
 			Title:          shared.Title,
 			FeedTitle:      shared.FeedTitle,
+			FeedURL:        shared.FeedURL,
 			FeedSiteURL:    shared.FeedSiteURL,
 			Author:         shared.Author,
 			PublishedAt:    shared.PublishedAt,
@@ -149,7 +167,7 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 	}
 	// Markdown and prose routinely leave punctuation glued to a URL.
 	found = strings.TrimRight(found, ".,;:!?")
-	return &sharedLink{URL: found}
+	return &sharedLink{URL: found, Title: found}
 }
 
 func (s *Server) resolveAuthors(ctx context.Context, client *mattermost.Client, items []sharedItem, ids map[string]struct{}) error {
@@ -176,6 +194,122 @@ func (s *Server) resolveAuthors(ctx context.Context, client *mattermost.Client, 
 			items[i].Author.DisplayName = user.DisplayName()
 		}
 	}
+	return nil
+}
+
+type readRequest struct {
+	Read *bool `json:"read,omitempty"`
+}
+
+// handleMarkRiverRead records that the reader has seen an item and its replies.
+func (s *Server) handleMarkRiverRead(w http.ResponseWriter, r *http.Request, identity *auth.Identity) error {
+	postID := r.PathValue("id")
+	if postID == "" {
+		return errBadRequest("post id is required")
+	}
+
+	var request readRequest
+	if r.ContentLength > 0 {
+		if err := decodeJSON(r, &request); err != nil {
+			return err
+		}
+	}
+
+	ctx := r.Context()
+
+	if request.Read != nil && !*request.Read {
+		if err := s.store().MarkRiverUnread(ctx, identity.User.ID, postID); err != nil {
+			return err
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	}
+
+	// Seeing the item means seeing the replies it currently has.
+	var seenReplyAt int64
+	if snapshot, err := s.snapshot(ctx, identity.Mattermost(s.mm)); err == nil {
+		if root := snapshot.find(postID); root != nil {
+			seenReplyAt = root.LastReplyAt
+		}
+	}
+
+	if err := s.store().MarkRiverRead(ctx, identity.User.ID, postID, seenReplyAt); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+// handleMarkRiverReadAll clears the whole river.
+func (s *Server) handleMarkRiverReadAll(w http.ResponseWriter, r *http.Request, identity *auth.Identity) error {
+	ctx := r.Context()
+
+	snapshot, err := s.snapshot(ctx, identity.Mattermost(s.mm))
+	if err != nil {
+		return err
+	}
+
+	seen := make(map[string]int64, len(snapshot.roots))
+	for _, root := range snapshot.roots {
+		seen[root.PostID] = root.LastReplyAt
+	}
+
+	if err := s.store().MarkRiverReadBatch(ctx, identity.User.ID, seen); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+type lookupResponse struct {
+	Shared      bool          `json:"shared"`
+	PostID      string        `json:"post_id,omitempty"`
+	ReplyCount  int           `json:"reply_count,omitempty"`
+	Permalink   string        `json:"permalink,omitempty"`
+	CreatedAt   int64         `json:"created_at,omitempty"`
+	Author      *sharedAuthor `json:"author,omitempty"`
+	MineAlready bool          `json:"mine_already,omitempty"`
+}
+
+// handleLookupShare answers "has this article already been shared?".
+func (s *Server) handleLookupShare(w http.ResponseWriter, r *http.Request, identity *auth.Identity) error {
+	entryURL := strings.TrimSpace(r.URL.Query().Get("url"))
+	if entryURL == "" {
+		return errBadRequest("url is required")
+	}
+
+	ctx := r.Context()
+	client := identity.Mattermost(s.mm)
+
+	snapshot, err := s.snapshot(ctx, client)
+	if err != nil {
+		return err
+	}
+
+	root := snapshot.shareOf(entryURL)
+	if root == nil {
+		s.writeJSON(w, http.StatusOK, lookupResponse{Shared: false})
+		return nil
+	}
+
+	response := lookupResponse{
+		Shared:      true,
+		PostID:      root.PostID,
+		ReplyCount:  root.ReplyCount,
+		CreatedAt:   root.CreateAt,
+		Permalink:   s.mm.BaseURL() + "/_redirect/pl/" + root.PostID,
+		Author:      &sharedAuthor{UserID: root.UserID},
+		MineAlready: root.UserID == identity.User.MattermostUserID,
+	}
+
+	if users, err := client.UsersByIDs(ctx, []string{root.UserID}); err == nil && len(users) > 0 {
+		response.Author.Username = users[0].Username
+		response.Author.DisplayName = users[0].DisplayName()
+	}
+
+	s.writeJSON(w, http.StatusOK, response)
 	return nil
 }
 
@@ -215,10 +349,10 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 	//
 	// Only the same author is blocked: two people independently finding the
 	// same article is a normal thing to want to say something about.
-	if existing, err := s.lookupShare(ctx, identity.Mattermost(s.mm), entry.URL); err != nil {
-		// An index failure must not block sharing; worst case is a duplicate.
+	if snapshot, err := s.snapshot(ctx, identity.Mattermost(s.mm)); err != nil {
 		s.log.Warn("duplicate share check failed", "error", err)
-	} else if existing != nil && existing.UserID == identity.User.MattermostUserID {
+	} else if existing := snapshot.shareOf(entry.URL); existing != nil &&
+		existing.UserID == identity.User.MattermostUserID {
 		s.writeJSON(w, http.StatusConflict, map[string]any{
 			"error":     "you have already shared this article",
 			"post_id":   existing.PostID,
@@ -244,6 +378,9 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 	}
 	if entry.Feed != nil {
 		link.FeedTitle = entry.Feed.Title
+		// The feed URL, not just the site: it is what lets a reader subscribe
+		// straight from the river.
+		link.FeedURL = entry.Feed.FeedURL
 		link.FeedSiteURL = entry.Feed.SiteURL
 	}
 	if err := post.SetSharedLink(link); err != nil {
@@ -255,16 +392,22 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		return err
 	}
 
-	s.noteShare(entry.URL, &shareRecord{
-		PostID:   created.ID,
-		UserID:   identity.User.MattermostUserID,
-		CreateAt: created.CreateAt,
-	})
+	// The sharer has the full text; copy it so readers without this feed can
+	// still read the article.
+	s.cacheEntry(ctx, entry.URL, entry)
+
+	// Your own share should never come back to you as unread.
+	if err := s.store().MarkRiverRead(ctx, identity.User.ID, created.ID, 0); err != nil {
+		s.log.Warn("mark own share read failed", "error", err)
+	}
+
+	s.InvalidateChannel()
 
 	s.writeJSON(w, http.StatusCreated, sharedItem{
 		PostID:    created.ID,
 		CreatedAt: created.CreateAt,
 		Message:   created.Message,
+		Read:      true,
 		Author: sharedAuthor{
 			UserID:      identity.User.MattermostUserID,
 			Username:    identity.User.MattermostUsername,
@@ -322,8 +465,6 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request, identity *
 	}
 
 	posts := list.Ordered()
-	// Mattermost returns threads oldest-last in some versions; sort explicitly
-	// so the UI never has to guess.
 	sortPostsByCreatedAt(posts)
 
 	messages := make([]threadMessage, 0, len(posts))
@@ -403,6 +544,13 @@ func (s *Server) handleComment(w http.ResponseWriter, r *http.Request, identity 
 	if err != nil {
 		return err
 	}
+
+	// You have seen your own comment, so it must not come back as a badge.
+	if err := s.store().MarkRiverRead(ctx, identity.User.ID, rootID, created.CreateAt); err != nil {
+		s.log.Warn("mark thread read failed", "error", err)
+	}
+
+	s.InvalidateChannel()
 
 	s.writeJSON(w, http.StatusCreated, threadMessage{
 		PostID:    created.ID,

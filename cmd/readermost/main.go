@@ -108,6 +108,7 @@ func run() error {
 	authService := auth.New(cfg, db, sealer, mmClient, adminClient, logger)
 	events := hub.New(cfg.Mattermost.URL, cfg.Mattermost.SharedChannelID, logger)
 	apiServer := api.New(cfg, authService, mmClient, events, logger)
+	events.OnChannelEvent(apiServer.InvalidateChannel)
 
 	frontend, err := web.Handler()
 	if err != nil {

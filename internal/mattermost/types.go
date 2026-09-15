@@ -95,10 +95,13 @@ const SharePropsVersion = 1
 // It deliberately carries no Miniflux entry ID: those are scoped per user, so
 // the same article has a different ID in every account. EntryURL is the key.
 type SharedLink struct {
-	Version     int    `json:"v"`
-	EntryURL    string `json:"entry_url"`
-	Title       string `json:"title"`
-	FeedTitle   string `json:"feed_title"`
+	Version   int    `json:"v"`
+	EntryURL  string `json:"entry_url"`
+	Title     string `json:"title"`
+	FeedTitle string `json:"feed_title"`
+	// FeedURL is the feed itself, not the site — it is what lets a reader
+	// subscribe straight from the river. Absent on shares made before this.
+	FeedURL     string `json:"feed_url,omitempty"`
 	FeedSiteURL string `json:"feed_site_url"`
 	Author      string `json:"author"`
 	PublishedAt string `json:"published_at"`

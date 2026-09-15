@@ -236,22 +236,23 @@ func (s *Service) provision(ctx context.Context, mmUser *mattermost.User) (*stor
 	}
 
 	mfUser, err := s.admin.CreateUser(ctx, username, password)
-	if miniflux.IsConflict(err) {
-		// The Miniflux account outlived this database — most likely the SQLite
-		// file was wiped. The old password is unrecoverable, so reset it and
-		// adopt the account, keeping the user's feeds and read history.
-		s.log.Info("adopting existing miniflux account", "username", username)
-
+	if err != nil {
+		// The account may already exist — most likely this database was wiped
+		// while Miniflux kept going. Ask rather than infer: Miniflux reports a
+		// duplicate username as 400, not 409, and matching on status codes or
+		// message text is exactly the sort of guess that breaks on upgrade.
 		existing, lookupErr := s.admin.UserByUsername(ctx, username)
 		if lookupErr != nil {
-			return nil, fmt.Errorf("adopt miniflux account: %w", lookupErr)
+			return nil, fmt.Errorf("create miniflux user: %w", err)
 		}
+
+		// It exists, and its password is unrecoverable, so reset it and adopt
+		// the account — keeping the user's feeds and read history.
+		s.log.Info("adopting existing miniflux account", "username", username)
 		if resetErr := s.admin.SetUserPassword(ctx, existing.ID, password); resetErr != nil {
 			return nil, fmt.Errorf("reset miniflux password: %w", resetErr)
 		}
 		mfUser = existing
-	} else if err != nil {
-		return nil, fmt.Errorf("create miniflux user: %w", err)
 	}
 
 	sealedPassword, err := s.sealer.SealString(password)
