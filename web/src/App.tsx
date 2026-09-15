@@ -25,6 +25,15 @@ import { NewFolder } from "./components/NewFolder";
 import { ListToolbar } from "./components/ListToolbar";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
+import {
+  matchesLength,
+  readLengthFilter,
+  readStatusFilter,
+  writeLengthFilter,
+  writeStatusFilter,
+  type LengthFilter,
+  type StatusFilter,
+} from "./filters";
 import type { Entry, Selection, SharedRiver, Tree } from "./types";
 
 function SignIn() {
@@ -78,6 +87,12 @@ export function App() {
   // Set after sharing, to scroll the article's discussion into view and focus it.
   const [focusDiscussion, setFocusDiscussion] = useState(0);
   const [sort, setSort] = useState<SortOrder>(() => readSort({ kind: "unread" }));
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    readStatusFilter({ kind: "unread" }),
+  );
+  const [lengthFilter, setLengthFilter] = useState<LengthFilter>(() =>
+    readLengthFilter({ kind: "unread" }),
+  );
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
@@ -93,9 +108,9 @@ export function App() {
   const selectedSharedItem =
     sharedItems.find((item) => item.post_id === selectedSharedPost) ?? sharedItems[0];
 
-  const entries = useEntries(selection, sort);
-  const setStatus = useSetStatus(selection, sort);
-  const toggleStar = useToggleStar(selection, sort);
+  const entries = useEntries(selection, sort, statusFilter, lengthFilter);
+  const setStatus = useSetStatus(selection, sort, statusFilter, lengthFilter);
+  const toggleStar = useToggleStar(selection, sort, statusFilter, lengthFilter);
 
   /** The unread count for whatever the toolbar is describing. */
   const unreadForSelection = useMemo(() => {
@@ -119,13 +134,16 @@ export function App() {
   }, [tree.data, selection]);
 
   const list = useMemo(() => {
-    const fetched = entries.data?.entries ?? [];
+    const all = entries.data?.entries ?? [];
+    // Miniflux has no reading-time filter, so this pass is ours.
+    const fetched =
+      lengthFilter === "any" ? all : all.filter((entry) => matchesLength(entry, lengthFilter));
     if (sort !== "magic") return fetched;
     // Seeded on the selection so the order survives re-renders, and changes
     // when you move to a different feed.
     const seed = JSON.stringify(selection).length * 2654435761;
     return shuffle(fetched, seed);
-  }, [entries.data, sort, selection]);
+  }, [entries.data, sort, selection, lengthFilter]);
   const selectedEntry = list.find((entry) => entry.id === selectedEntryId);
 
   // Does the selected article already have a discussion? Owned here rather than
@@ -323,7 +341,7 @@ export function App() {
       // the cache directly rather than firing a mutation is what keeps j/k
       // feeling instant without one request per keystroke.
       queryClient.setQueryData(
-        ["entries", selection, sort],
+        ["entries", selection, sort, statusFilter, lengthFilter],
         (old: { entries: Entry[]; total: number } | undefined) =>
           old
             ? {
@@ -338,7 +356,7 @@ export function App() {
       );
       queueRead(entry.id);
     },
-    [queueRead, queryClient, selection, sort],
+    [queueRead, queryClient, selection, sort, statusFilter, lengthFilter],
   );
 
   // Changing folders should land on nothing selected rather than a stale entry.
@@ -348,6 +366,8 @@ export function App() {
       previousSelection.current = selection;
       setSelectedEntryId(undefined);
       setSort(readSort(selection));
+      setStatusFilter(readStatusFilter(selection));
+      setLengthFilter(readLengthFilter(selection));
     }
   }, [selection]);
 
@@ -355,6 +375,22 @@ export function App() {
     (order: SortOrder) => {
       setSort(order);
       writeSort(selection, order);
+    },
+    [selection],
+  );
+
+  const changeStatusFilter = useCallback(
+    (filter: StatusFilter) => {
+      setStatusFilter(filter);
+      writeStatusFilter(selection, filter);
+    },
+    [selection],
+  );
+
+  const changeLengthFilter = useCallback(
+    (filter: LengthFilter) => {
+      setLengthFilter(filter);
+      writeLengthFilter(selection, filter);
     },
     [selection],
   );
@@ -545,6 +581,11 @@ export function App() {
           tree={tree.data}
           sort={sort}
           onSort={changeSort}
+          statusFilter={statusFilter}
+          onStatusFilter={changeStatusFilter}
+          lengthFilter={lengthFilter}
+          onLengthFilter={changeLengthFilter}
+          filteredOut={(entries.data?.entries.length ?? 0) - list.length}
           onMarkAllRead={markAllRead}
           onRefresh={refreshSelection}
           onMoveFeed={moveFeed}

@@ -871,3 +871,28 @@ a {
   margin: 4px 0;
   background: var(--border);
 }
+
+/* An active filter, shown in the toolbar and clickable to clear. */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.filter-chip:hover {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.filter-chip .clear {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+}

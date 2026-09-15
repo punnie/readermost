@@ -1,3 +1,4 @@
+import { prefKey, readPref, writePref } from "./prefs";
 import type { Selection } from "./types";
 
 /**
@@ -31,43 +32,20 @@ export function sortQuery(order: SortOrder): { order: string; direction: "asc" |
 
 /** A stable key per feed, folder or view, so each remembers its own order. */
 export function sortKey(selection: Selection): string {
-  switch (selection.kind) {
-    case "feed":
-      return `sort:feed:${selection.id}`;
-    case "category":
-      return `sort:category:${selection.id}`;
-    default:
-      return `sort:view:${selection.kind}`;
-  }
+  return prefKey("sort", selection);
 }
 
 function isSortOrder(value: unknown): value is SortOrder {
   return value === "newest" || value === "oldest" || value === "magic";
 }
 
-/**
- * Read a remembered order.
- *
- * localStorage throws outright in some contexts — a private window, a browser
- * set to block site data — so every access is guarded and falls back to the
- * default rather than taking the app down with it.
- */
+/** Read a remembered order, defaulting to newest. */
 export function readSort(selection: Selection): SortOrder {
-  try {
-    const stored = window.localStorage.getItem(sortKey(selection));
-    return isSortOrder(stored) ? stored : "newest";
-  } catch {
-    return "newest";
-  }
+  return readPref(sortKey(selection), isSortOrder, "newest");
 }
 
 export function writeSort(selection: Selection, order: SortOrder): void {
-  try {
-    window.localStorage.setItem(sortKey(selection), order);
-  } catch {
-    // A preference that cannot be saved is not worth an error; the session
-    // still honours the choice.
-  }
+  writePref(sortKey(selection), order);
 }
 
 /**

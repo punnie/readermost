@@ -7,6 +7,7 @@ import {
 
 import { api, type EntryQuery } from "./api";
 import { sortQuery, type SortOrder } from "./sort";
+import { statusesFor, type LengthFilter, type StatusFilter } from "./filters";
 import type { Entry, Selection } from "./types";
 
 export function useMe() {
@@ -18,8 +19,17 @@ export function useTree() {
 }
 
 /** Translates a sidebar selection into the entry query it implies. */
-export function queryForSelection(selection: Selection, sort: SortOrder): EntryQuery {
-  const base: EntryQuery = { limit: 100, ...sortQuery(sort) };
+export function queryForSelection(
+  selection: Selection,
+  sort: SortOrder,
+  status: StatusFilter = "all",
+  length: LengthFilter = "any",
+): EntryQuery {
+  // Miniflux cannot filter by reading time, so that pass happens on the client
+  // over whatever was fetched. Pull a bigger window when it is active, or a
+  // "long" filter on a news feed finds nothing in the first 100.
+  const limit = length === "any" ? 100 : 200;
+  const base: EntryQuery = { limit, ...sortQuery(sort) };
 
   switch (selection.kind) {
     case "unread":
@@ -27,20 +37,26 @@ export function queryForSelection(selection: Selection, sort: SortOrder): EntryQ
     case "starred":
       return { ...base, starred: true };
     case "category":
-      return { ...base, categoryId: selection.id, status: ["unread", "read"] };
+      return { ...base, categoryId: selection.id, status: statusesFor(status) };
     case "feed":
-      return { ...base, feedId: selection.id, status: ["unread", "read"] };
+      return { ...base, feedId: selection.id, status: statusesFor(status) };
     case "all":
     default:
       return { ...base, status: ["unread", "read"] };
   }
 }
 
-export function useEntries(selection: Selection, sort: SortOrder) {
-  const query = queryForSelection(selection, sort);
+export function useEntries(
+  selection: Selection,
+  sort: SortOrder,
+  statusFilter: StatusFilter,
+  lengthFilter: LengthFilter,
+) {
+  const query = queryForSelection(selection, sort, statusFilter, lengthFilter);
   return useQuery({
-    // The sort is part of the key: a different order is a different request.
-    queryKey: ["entries", selection, sort],
+    // Sort and filters are part of the key: each combination is its own request.
+    // The length filter is client-side but changes the fetch size, so it counts.
+    queryKey: ["entries", selection, sort, statusFilter, lengthFilter],
     queryFn: () => api.entries(query),
     enabled: selection.kind !== "shared",
   });
@@ -50,7 +66,12 @@ export function useEntries(selection: Selection, sort: SortOrder) {
  * Marks entries read or unread optimistically, rolling back if the server
  * rejects it. Snappy read state is most of what makes a reader feel fast.
  */
-export function useSetStatus(selection: Selection, sort: SortOrder) {
+export function useSetStatus(
+  selection: Selection,
+  sort: SortOrder,
+  statusFilter: StatusFilter,
+  lengthFilter: LengthFilter,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -58,7 +79,7 @@ export function useSetStatus(selection: Selection, sort: SortOrder) {
       api.setEntryStatus(ids, status),
 
     onMutate: async ({ ids, status }) => {
-      const key = ["entries", selection, sort];
+      const key = ["entries", selection, sort, statusFilter, lengthFilter];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
 
@@ -87,14 +108,19 @@ export function useSetStatus(selection: Selection, sort: SortOrder) {
   });
 }
 
-export function useToggleStar(selection: Selection, sort: SortOrder) {
+export function useToggleStar(
+  selection: Selection,
+  sort: SortOrder,
+  statusFilter: StatusFilter,
+  lengthFilter: LengthFilter,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => api.toggleBookmark(id),
 
     onMutate: async (id) => {
-      const key = ["entries", selection, sort];
+      const key = ["entries", selection, sort, statusFilter, lengthFilter];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
 
