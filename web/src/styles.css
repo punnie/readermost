@@ -714,3 +714,11 @@ a {
   padding-top: 10px;
   margin-top: 14px;
 }
+
+/* A feed with no favicon, or one whose icon failed to load. */
+.favicon-blank {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-sizing: border-box;
+}

@@ -27,6 +27,10 @@ type Category struct {
 }
 
 // FeedIcon references a feed's favicon.
+//
+// Miniflux always sends this object, even for a feed that has no icon — in that
+// case IconID is 0. Testing the pointer for nil is therefore not enough, and
+// doing so makes every feed claim an icon it cannot serve.
 type FeedIcon struct {
 	FeedID int64 `json:"feed_id"`
 	IconID int64 `json:"icon_id"`
@@ -118,4 +122,13 @@ func (c *FeedCounters) Unread(feedID int64) int {
 		return 0
 	}
 	return c.Unreads[itoa(feedID)]
+}
+
+// HasIcon reports whether a feed actually has a favicon to serve.
+//
+// Miniflux sends the Icon object for every feed, including ones it has never
+// fetched, with IconID left at 0 — so a nil check alone makes every feed claim
+// an icon and every request for one 404.
+func (f *Feed) HasIcon() bool {
+	return f != nil && f.Icon != nil && f.Icon.IconID > 0
 }

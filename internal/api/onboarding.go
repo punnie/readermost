@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/punnie/readermost/internal/auth"
 	"github.com/punnie/readermost/internal/miniflux"
@@ -38,6 +40,12 @@ func (s *Server) handleImportOPML(w http.ResponseWriter, r *http.Request, identi
 	if err := s.auth.Store().MarkOnboarded(ctx, identity.User.ID); err != nil {
 		s.log.Warn("mark onboarded failed", "error", err)
 	}
+
+	// Miniflux's import creates the feeds but does not fetch them — they sit
+	// empty, with no entries and no favicon, until the poller comes round,
+	// which can be an hour. Ask for a refresh so an import actually produces a
+	// reader rather than a list of empty names.
+	s.refreshAfterImport(identity)
 
 	s.writeJSON(w, http.StatusOK, map[string]string{"message": result.Message})
 	return nil
@@ -101,4 +109,25 @@ func (s *Server) handleMarkOnboarded(w http.ResponseWriter, r *http.Request, ide
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+// refreshAfterImport asks Miniflux to poll the freshly imported feeds.
+//
+// It runs detached from the request: Miniflux returns immediately and does the
+// fetching in the background, but a large import still leaves the call on the
+// wrong side of the response, and the request context dies with it.
+func (s *Server) refreshAfterImport(identity *auth.Identity) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		err := s.auth.WithMiniflux(ctx, identity, func(client *miniflux.Client) error {
+			return client.RefreshAllFeeds(ctx)
+		})
+		if err != nil {
+			// The feeds are imported either way; they will fill in on
+			// Miniflux's own schedule.
+			s.log.Warn("refresh after import failed", "error", err)
+		}
+	}()
 }

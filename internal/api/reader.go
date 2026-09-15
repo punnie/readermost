@@ -116,7 +116,7 @@ func (s *Server) handleTree(w http.ResponseWriter, r *http.Request, identity *au
 			SiteURL:  feed.SiteURL,
 			FeedURL:  feed.FeedURL,
 			Unread:   unread,
-			HasIcon:  feed.Icon != nil,
+			HasIcon:  feed.HasIcon(),
 			Disabled: feed.Disabled,
 			Error:    feed.ParsingErrorMsg,
 		})

@@ -1,3 +1,4 @@
+import { FeedIcon } from "./FeedIcon";
 import type { Selection, Tree } from "../types";
 
 interface Props {
@@ -118,16 +119,7 @@ export function Sidebar({
                     onClick={() => onSelect({ kind: "feed", id: feed.id, title: feed.title })}
                     title={feed.error || feed.title}
                   >
-                    {feed.has_icon ? (
-                      <img
-                        className="favicon"
-                        src={`/api/feeds/${feed.id}/icon`}
-                        alt=""
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="favicon" />
-                    )}
+                    <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
                     <span className="label">{feed.title}</span>
                     {feed.error && <span className="feed-error" title={feed.error}>!</span>}
                     {feed.unread > 0 && <span className="count">{feed.unread}</span>}
