@@ -98,9 +98,12 @@ export function useSwipeNavigation(ref: RefObject<HTMLElement | null>, options: 
 
     let startX = 0;
     let startY = 0;
-    let pointers = 0;
+    let active = 0;
+    /** The most fingers seen during this gesture: a pinch is not a swipe. */
+    let maxPointers = 0;
     let scrollable = false;
     let tracking = false;
+    let pointerId = -1;
 
     const reset = (animate: boolean) => {
       element.style.transition = animate ? "transform 150ms ease-out" : "";
@@ -109,20 +112,33 @@ export function useSwipeNavigation(ref: RefObject<HTMLElement | null>, options: 
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      pointers += 1;
-      if (pointers > 1) {
+      active += 1;
+      maxPointers = Math.max(maxPointers, active);
+
+      if (active > 1) {
         reset(true);
         return;
       }
+
       startX = event.clientX;
       startY = event.clientY;
+      maxPointers = 1;
       scrollable = startsInScrollable(event.target as Element, element);
       tracking = true;
+      pointerId = event.pointerId;
       element.style.transition = "";
+
+      // Keep receiving moves even if the finger wanders off the element. iOS
+      // is quick to retarget otherwise, and the gesture dies mid-drag.
+      try {
+        element.setPointerCapture(event.pointerId);
+      } catch {
+        // Capture is a nicety; the gesture still works without it.
+      }
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!tracking || pointers > 1) return;
+      if (!tracking || active > 1) return;
 
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
@@ -140,17 +156,30 @@ export function useSwipeNavigation(ref: RefObject<HTMLElement | null>, options: 
       }
     };
 
-    const onPointerUp = (event: PointerEvent) => {
+    const finish = (event: PointerEvent, cancelled: boolean) => {
       const wasTracking = tracking;
-      pointers = Math.max(0, pointers - 1);
+      const pointers = maxPointers;
+
+      active = Math.max(0, active - 1);
+      if (active === 0) maxPointers = 0;
+
+      if (pointerId === event.pointerId) {
+        try {
+          element.releasePointerCapture(event.pointerId);
+        } catch {
+          // Already released, or never captured.
+        }
+        pointerId = -1;
+      }
+
       reset(true);
-      if (!wasTracking) return;
+      if (!wasTracking || cancelled) return;
 
       const verdict = swipeVerdict({
         dx: event.clientX - startX,
         dy: event.clientY - startY,
         startX,
-        pointers: 1,
+        pointers,
         inScrollable: scrollable,
       });
 
@@ -158,10 +187,8 @@ export function useSwipeNavigation(ref: RefObject<HTMLElement | null>, options: 
       if (verdict === "next") latest.current.onNext();
     };
 
-    const onPointerCancel = () => {
-      pointers = Math.max(0, pointers - 1);
-      reset(true);
-    };
+    const onPointerUp = (event: PointerEvent) => finish(event, false);
+    const onPointerCancel = (event: PointerEvent) => finish(event, true);
 
     element.addEventListener("pointerdown", onPointerDown);
     element.addEventListener("pointermove", onPointerMove);

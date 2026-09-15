@@ -52,6 +52,9 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* iOS rubber-bands the document by default, which makes the whole app bounce
+     under a thumb. Nothing here ever scrolls the document itself. */
+  overscroll-behavior: none;
 }
 
 body {
@@ -1065,12 +1068,15 @@ a {
    ============================================================ */
 
 .mobile {
+  /* Fixed to the viewport rather than sized by it. This is what stops the
+     whole app sliding and bouncing when a thumb drags: there is no document
+     scroll left to rubber-band. */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  /* dvh, not vh: on iOS Safari vh includes the address bar, which would push
-     the tab bar off the bottom of the screen. */
-  height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .mobile-pane {
@@ -1084,6 +1090,13 @@ a {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The crux of the swipe fix. Without this the browser claims horizontal
+     panning for itself and cancels the pointer stream before a drag completes,
+     so the handler never fires. pan-y keeps vertical scrolling native and
+     hands horizontal movement to us. */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   /* Room for the tab bar plus the home indicator. */
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
@@ -1103,6 +1116,7 @@ a {
 /* ---------- mobile bars ---------- */
 
 .mobile-bar {
+  touch-action: manipulation;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1163,6 +1177,7 @@ a {
 /* ---------- tab bar ---------- */
 
 .tabbar {
+  touch-action: manipulation;
   display: flex;
   flex-shrink: 0;
   background: var(--bg-sunken);
@@ -1242,14 +1257,19 @@ a {
   background: var(--bg-sunken);
   border-right: 1px solid var(--border);
   transform: translateX(-100%);
-  transition: transform 200ms ease;
+  transition: transform 200ms ease, visibility 200ms;
   overflow-y: auto;
   padding-top: env(safe-area-inset-top);
   overscroll-behavior: contain;
+  /* Hidden, not merely off-screen. A translated-away fixed element gets
+     painted into iOS's swipe-back transition, which is why the drawer
+     appeared during the system back gesture. */
+  visibility: hidden;
 }
 
 .drawer.open {
   transform: none;
+  visibility: visible;
 }
 
 .drawer .sidebar {
