@@ -12,6 +12,8 @@ interface Props {
   collapsed: Set<number>;
   onToggleCollapse: (categoryId: number) => void;
   onNewFolder: () => void;
+  /** Dragging is a desktop affordance; on touch it only blocks scrolling. */
+  draggable?: boolean;
   /** Move a feed into a folder, from a drag or a drop. */
   onMoveFeed: (feedId: number, categoryId: number) => void;
 }
@@ -29,6 +31,7 @@ export function Sidebar({
   onToggleCollapse,
   onNewFolder,
   onMoveFeed,
+  draggable = true,
 }: Props) {
   // The folder a feed is currently hovering over, so the drop target is obvious.
   const [dropTarget, setDropTarget] = useState<number>();
@@ -140,7 +143,7 @@ export function Sidebar({
                     } ${feed.unread > 0 ? "has-unread" : ""}`}
                     onClick={() => onSelect({ kind: "feed", id: feed.id })}
                     title={feed.error || feed.title}
-                    {...feedDragProps(feed.id, category.id)}
+                    {...(draggable ? feedDragProps(feed.id, category.id) : {})}
                     // A feed dropped onto a sibling means the folder it is in.
                     {...handlers}
                   >

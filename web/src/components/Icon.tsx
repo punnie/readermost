@@ -1,5 +1,5 @@
 interface Props {
-  name: "pencil" | "trash" | "grip" | "folder";
+  name: "pencil" | "trash" | "grip" | "folder" | "share";
   size?: number;
 }
 
@@ -48,6 +48,14 @@ export function Icon({ name, size = 15 }: Props) {
           <circle cx="15" cy="12" r="1.6" />
           <circle cx="9" cy="18" r="1.6" />
           <circle cx="15" cy="18" r="1.6" />
+        </svg>
+      );
+    case "share":
+      return (
+        <svg {...common}>
+          <path d="M12 3v13" />
+          <path d="m7 8 5-5 5 5" />
+          <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
         </svg>
       );
     case "folder":

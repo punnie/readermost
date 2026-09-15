@@ -25,6 +25,14 @@ import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
 import { NewFolder } from "./components/NewFolder";
 import { ListToolbar } from "./components/ListToolbar";
+import { ListMenu } from "./components/ListMenu";
+import { MenuItem, MenuSeparator } from "./components/Menu";
+import { MobileLayout } from "./components/MobileLayout";
+import { MobileArticleBar, MobileListBar } from "./components/MobileTopBar";
+import { MoreSheet } from "./components/MoreSheet";
+import { TabBar } from "./components/TabBar";
+import { useIsMobile } from "./useIsMobile";
+import { useSwipeNavigation } from "./swipe";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
@@ -99,12 +107,17 @@ export function App() {
   );
 
   /**
-   * Open an article. Replaces rather than pushes: stepping through a feed with
-   * j would otherwise bury the previous feed under a hundred history entries.
+   * Open an article.
+   *
+   * Pushes the first time — opening one from the list — and replaces when
+   * moving between articles. That single rule serves both layouts: a burst of
+   * j does not bury the feed in history, and on a phone the back button
+   * returns to the list rather than leaving the app.
    */
   const setSelectedEntryId = useCallback(
-    (entryID: number | undefined) => navigate(pathFor(selection, entryID), { replace: true }),
-    [navigate, selection],
+    (entryID: number | undefined) =>
+      navigate(pathFor(selection, entryID), { replace: selectedEntryId !== undefined }),
+    [navigate, selection, selectedEntryId],
   );
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [sharing, setSharing] = useState<Entry>();
@@ -114,13 +127,17 @@ export function App() {
   const [subscribeTo, setSubscribeTo] = useState<{ feedUrl: string; feedTitle: string }>();
   const [showSettings, setShowSettings] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
   // The open shared post is addressable too — and unlike feed ids, Mattermost
   // post ids are global, so this one URL really is shareable with a friend.
   const selectedSharedPost = route.postID;
   const setSelectedSharedPost = useCallback(
-    (postID: string) => navigate(pathFor({ kind: "shared" }, postID), { replace: true }),
-    [navigate],
+    (postID: string) =>
+      // Same rule as articles: push into the river, replace while moving in it.
+      navigate(pathFor({ kind: "shared" }, postID), { replace: route.postID !== undefined }),
+    [navigate, route.postID],
   );
   // Set after sharing, to scroll the article's discussion into view and focus it.
   const [focusDiscussion, setFocusDiscussion] = useState(0);
@@ -134,6 +151,13 @@ export function App() {
 
   const moveFeed = useMoveFeed();
   const online = useOnline();
+  const isMobile = useIsMobile();
+
+  /** On a phone the URL decides the screen: an open item means the article. */
+  const showingArticle =
+    selection.kind === "shared" ? Boolean(route.postID) : selectedEntryId !== undefined;
+
+  const articleRef = useRef<HTMLDivElement>(null);
   const restoring = useIsRestoring();
 
   // Live shared-channel updates, once we know who we are.
@@ -428,6 +452,13 @@ export function App() {
   const currentURL =
     selection.kind === "shared" ? selectedSharedItem?.link?.url : selectedEntry?.url;
 
+  // The same traversal the keyboard uses, driven by a finger.
+  useSwipeNavigation(articleRef, {
+    onPrevious: () => move(-1),
+    onNext: () => move(1),
+    enabled: isMobile && showingArticle,
+  });
+
   // `g` is a prefix: g then u/a/s jumps between views.
   const pendingGoto = useRef(false);
 
@@ -531,6 +562,257 @@ export function App() {
           void queryClient.invalidateQueries({ queryKey: ["me"] });
         }}
       />
+    );
+  }
+
+  /**
+   * The phone's options menu: the same body as the desktop toolbar, plus the
+   * actions that live as buttons there and have no room here.
+   */
+  const mobileMenu = (
+    <ListMenu
+      selection={selection}
+      title={selectionTitle(selection, tree.data)}
+      tree={tree.data}
+      sort={sort}
+      onSort={changeSort}
+      statusFilter={statusFilter}
+      onStatusFilter={changeStatusFilter}
+      lengthFilter={lengthFilter}
+      onLengthFilter={changeLengthFilter}
+      onMoveFeed={moveFeed}
+      onUnsubscribe={unsubscribe}
+      onRenameFolder={renameFolder}
+      onDeleteFolder={deleteFolder}
+      extra={(close) => (
+        <>
+          {showingArticle && selectedEntry && (
+            <>
+              <MenuItem
+                onClick={() => {
+                  setStatus.mutate({
+                    ids: [selectedEntry.id],
+                    status: selectedEntry.status === "read" ? "unread" : "read",
+                  });
+                  close();
+                }}
+              >
+                Mark {selectedEntry.status === "read" ? "unread" : "read"}
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  window.open(selectedEntry.url, "_blank", "noopener");
+                  close();
+                }}
+              >
+                Open original
+              </MenuItem>
+              <MenuSeparator />
+            </>
+          )}
+
+          <MenuItem
+            disabled={!online}
+            onClick={() => {
+              markAllRead();
+              close();
+            }}
+          >
+            Mark all read
+          </MenuItem>
+          {selection.kind !== "shared" && (
+            <MenuItem
+              disabled={!online}
+              onClick={() => {
+                refreshSelection();
+                close();
+              }}
+            >
+              Refresh
+            </MenuItem>
+          )}
+          <MenuSeparator />
+        </>
+      )}
+    />
+  );
+
+  const mobileDialogs = (
+    <>
+      {sharing && (
+        <ShareDialog
+          entry={sharing}
+          onCancel={() => setSharing(undefined)}
+          onShare={async (message) => {
+            await api.share(sharing.id, message);
+            setSharing(undefined);
+            void queryClient.invalidateQueries({ queryKey: ["shared"] });
+            void queryClient.invalidateQueries({ queryKey: ["share-lookup"] });
+            setFocusDiscussion((count) => count + 1);
+          }}
+        />
+      )}
+
+      {showAdd && <AddSubscription tree={tree.data} onClose={() => setShowAdd(false)} />}
+
+      {subscribeTo && (
+        <AddSubscription
+          tree={tree.data}
+          initialFeedUrl={subscribeTo.feedUrl}
+          initialTitle={subscribeTo.feedTitle}
+          onClose={() => setSubscribeTo(undefined)}
+        />
+      )}
+
+      {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+      {showNewFolder && <NewFolder onClose={() => setShowNewFolder(false)} />}
+      {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
+    </>
+  );
+
+  const listPane =
+    selection.kind === "shared" ? (
+      <SharedList
+        items={sharedItems}
+        selectedId={selectedSharedItem?.post_id}
+        onSelect={(item) => openShared(item.post_id)}
+        isLoading={shared.isLoading}
+      />
+    ) : (
+      <EntryList
+        entries={list}
+        selectedId={selectedEntryId}
+        onSelect={openEntry}
+        isLoading={entries.isLoading}
+        title={selectionTitle(selection, tree.data)}
+      />
+    );
+
+  const articlePane =
+    selection.kind === "shared" ? (
+      <SharedArticle
+        item={selectedSharedItem}
+        tree={tree.data}
+        onSubscribe={(feedUrl, feedTitle) => setSubscribeTo({ feedUrl, feedTitle })}
+      />
+    ) : (
+      <EntryView
+        entry={selectedEntry}
+        onToggleStar={(id) => toggleStar.mutate(id)}
+        onToggleRead={(entry) =>
+          setStatus.mutate({
+            ids: [entry.id],
+            status: entry.status === "read" ? "unread" : "read",
+          })
+        }
+        discussion={discussion.data}
+        discussionLoading={discussion.isLoading}
+        focusDiscussion={focusDiscussion}
+        onShare={setSharing}
+        onDiscuss={openDiscussion}
+      />
+    );
+
+  const signOut = () => {
+    void api
+      .logout()
+      .catch(() => {})
+      // Clear before reloading: the cache outlives the session cookie, and the
+      // next person on this browser must not inherit it.
+      .finally(async () => {
+        queryClient.clear();
+        await clearPersistedCache();
+        window.location.href = "/";
+      });
+  };
+
+  if (isMobile) {
+    return (
+      <>
+        <MobileLayout
+          offline={!online}
+          drawerOpen={drawerOpen}
+          onCloseDrawer={() => setDrawerOpen(false)}
+          drawer={
+            <Sidebar
+              tree={tree.data}
+              riverUnread={shared.data?.unread ?? 0}
+              selection={selection}
+              draggable={false}
+              onSelect={(next) => {
+                setSelection(next);
+                setDrawerOpen(false);
+              }}
+              onNewFolder={() => {
+                setShowNewFolder(true);
+                setDrawerOpen(false);
+              }}
+              onMoveFeed={moveFeed}
+              collapsed={collapsed}
+              onToggleCollapse={(id) =>
+                setCollapsed((current) => {
+                  const next = new Set(current);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+            />
+          }
+          topBar={
+            showingArticle ? (
+              <MobileArticleBar
+                subtitle={
+                  selection.kind === "shared"
+                    ? (selectedSharedItem?.link?.feed_title ?? "Shared")
+                    : (selectedEntry?.feed?.title ?? selectionTitle(selection, tree.data))
+                }
+                starred={selectedEntry?.starred}
+                onBack={() => window.history.back()}
+                onStar={selectedEntry ? () => toggleStar.mutate(selectedEntry.id) : undefined}
+                onShare={selectedEntry ? () => setSharing(selectedEntry) : undefined}
+                menu={mobileMenu}
+              />
+            ) : (
+              <MobileListBar
+                title={selectionTitle(selection, tree.data)}
+                onOpenDrawer={() => setDrawerOpen(true)}
+                menu={mobileMenu}
+              />
+            )
+          }
+          tabBar={
+            <TabBar
+              selection={selection}
+              unread={tree.data?.total_unread ?? 0}
+              riverUnread={shared.data?.unread ?? 0}
+              moreOpen={moreOpen}
+              onSelect={(next) => {
+                setSelection(next);
+                setMoreOpen(false);
+              }}
+              onMore={() => setMoreOpen((open) => !open)}
+            />
+          }
+        >
+          <div className="mobile-scroller" ref={articleRef}>
+            {showingArticle ? articlePane : listPane}
+          </div>
+        </MobileLayout>
+
+        {moreOpen && (
+          <MoreSheet
+            displayName={me.data?.display_name}
+            onClose={() => setMoreOpen(false)}
+            onSubscribe={() => setShowAdd(true)}
+            onSubscriptions={() => setShowSettings(true)}
+            onShortcuts={() => setShowShortcuts(true)}
+            onSignOut={signOut}
+          />
+        )}
+
+        {mobileDialogs}
+      </>
     );
   }
 
