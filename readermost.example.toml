@@ -1,0 +1,31 @@
+# Readermost configuration.
+#
+# Secret fields accept three forms:
+#   env:NAME     read from the environment
+#   file:/path   read from a file (works with systemd LoadCredential:
+#                "file:$CREDENTIALS_DIRECTORY/encryption_key")
+#   literal      used as-is — development only
+#
+# Never put a literal secret in a file the NixOS module renders: it lands in the
+# world-readable Nix store.
+
+listen_addr   = ":8080"
+public_url    = "https://reader.ni.fyi"
+database_path = "readermost.db"
+session_ttl   = "720h"
+
+# Generate with: readermost --genkey
+encryption_key = "env:READERMOST_KEY"
+
+[mattermost]
+url                 = "https://mattermost.example.org"
+oauth_client_id     = "env:READERMOST_MM_CLIENT_ID"
+oauth_client_secret = "env:READERMOST_MM_SECRET"
+# The channel that acts as the shared river. Copy its ID from
+# Mattermost: View Info on the channel.
+shared_channel_id   = "env:READERMOST_MM_CHANNEL"
+
+[miniflux]
+url            = "https://miniflux.internal"
+admin_username = "admin"
+admin_password = "env:READERMOST_MINIFLUX_ADMIN"

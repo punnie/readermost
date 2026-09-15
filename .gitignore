@@ -1,0 +1,19 @@
+/result
+/result-*
+/readermost
+/web/dist
+/web/node_modules
+*.db
+*.db-shm
+*.db-wal
+.direnv/
+.env
+
+# Local secrets — never commit
+/sikrits
+/config.local.toml
+/readermost.local.toml
+/dev/*.db
+/dev/*.db-shm
+/dev/*.db-wal
+/dev/readermost-dev
