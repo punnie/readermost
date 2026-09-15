@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api";
+import { useIsMobile } from "../useIsMobile";
 import type { Tree } from "../types";
 
 interface Props {
@@ -24,6 +25,7 @@ interface Candidate {
  */
 export function AddSubscription({ tree, initialFeedUrl, initialTitle, onClose }: Props) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [url, setUrl] = useState(initialFeedUrl ?? "");
@@ -34,9 +36,11 @@ export function AddSubscription({ tree, initialFeedUrl, initialTitle, onClose }:
   const [newCategory, setNewCategory] = useState("");
   const [error, setError] = useState<string>();
 
+  // Focusing on a phone opens the keyboard over the dialog before the reader
+  // has seen it; let them tap the field when they are ready.
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (!isMobile) inputRef.current?.focus();
+  }, [isMobile]);
 
   useEffect(() => {
     if (categoryId === undefined && tree?.categories.length) {

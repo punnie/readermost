@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api";
+import { useIsMobile } from "../useIsMobile";
 
 interface Props {
   onClose: () => void;
@@ -10,12 +11,15 @@ interface Props {
 /** Create a folder on its own, without having to be adding a feed. */
 export function NewFolder({ onClose }: Props) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
 
+  // Focusing on a phone opens the keyboard over the dialog before the reader
+  // has seen it; let them tap the field when they are ready.
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (!isMobile) inputRef.current?.focus();
+  }, [isMobile]);
 
   const create = useMutation({
     mutationFn: (name: string) => api.createCategory(name),

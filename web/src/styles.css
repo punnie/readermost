@@ -1070,9 +1070,14 @@ a {
 .mobile {
   /* Fixed to the viewport rather than sized by it. This is what stops the
      whole app sliding and bouncing when a thumb drags: there is no document
-     scroll left to rubber-band. */
+     scroll left to rubber-band.
+     Height comes from visualViewport, so an open keyboard shrinks the app
+     instead of covering its bottom row. */
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-vh, 100dvh);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1095,10 +1100,21 @@ a {
      so the handler never fires. pan-y keeps vertical scrolling native and
      hands horizontal movement to us. */
   touch-action: pan-y;
-  overscroll-behavior: contain;
+  /* Vertical only. overflow-x hidden stops wide content scrolling sideways at
+     all, and overscroll-behavior none stops iOS rubber-banding in either axis
+     when the content ends. */
+  overflow-x: hidden;
+  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   /* Room for the tab bar plus the home indicator. */
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
+}
+
+.swipe-surface {
+  /* Transformed while a swipe is in progress. Kept separate from the scroller
+     so moving it cannot disturb scrolling. */
+  min-height: 100%;
+  will-change: transform;
 }
 
 /* The scroller holds a pane that already scrolls on desktop; on a phone the
@@ -1346,17 +1362,43 @@ a {
 
 @media (max-width: 859px) {
   .backdrop {
-    align-items: flex-end;
+    /* Full screen, not a bottom sheet: a sheet sits precisely where the
+       keyboard opens, which left the share box unreachable. */
+    align-items: stretch;
+    justify-items: stretch;
     padding: 0;
   }
 
   .dialog,
   .dialog.subscriptions {
     width: 100%;
-    max-height: 88dvh;
+    height: var(--app-vh, 100dvh);
+    max-height: none;
     overflow-y: auto;
-    border-radius: 12px 12px 0 0;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+
+  /* Actions stay put at the bottom of the panel, above the keyboard, since
+     the panel itself is only as tall as the visible viewport. */
+  .dialog-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-raised);
+    padding-top: 12px;
+    margin-top: 16px;
+  }
+
+  .dialog .btn {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .dialog textarea,
+  .dialog input[type="text"] {
+    font-size: 16px; /* anything smaller makes iOS zoom the page on focus */
+    padding: 10px;
   }
 
   /* An article needs the full width on a narrow screen. */

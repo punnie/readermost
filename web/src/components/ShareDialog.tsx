@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useIsMobile } from "../useIsMobile";
 import type { Entry } from "../types";
 
 interface Props {
@@ -9,14 +10,18 @@ interface Props {
 }
 
 export function ShareDialog({ entry, onCancel, onShare }: Props) {
+  const isMobile = useIsMobile();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
+    // Only steal focus on a desktop. On a phone this throws the keyboard up
+    // over the article you are about to talk about, before you have even seen
+    // what you are sharing.
+    if (!isMobile) textareaRef.current?.focus();
+  }, [isMobile]);
 
   const submit = async () => {
     setBusy(true);
@@ -36,7 +41,7 @@ export function ShareDialog({ entry, onCancel, onShare }: Props) {
         if (event.target === event.currentTarget) onCancel();
       }}
     >
-      <div className="dialog" role="dialog" aria-modal="true">
+      <div className="dialog share-dialog" role="dialog" aria-modal="true">
         <h3>Share to Mattermost</h3>
 
         <div className="shared-card" style={{ marginBottom: "12px" }}>
@@ -46,13 +51,15 @@ export function ShareDialog({ entry, onCancel, onShare }: Props) {
 
         <textarea
           ref={textareaRef}
-          rows={3}
+          rows={isMobile ? 5 : 3}
           placeholder="Say something about it (optional)"
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={(event) => {
-            // Enter sends; Shift+Enter is a newline.
-            if (event.key === "Enter" && !event.shiftKey) {
+            // Enter sends on a desktop, where Shift+Enter gives a newline. On a
+            // touch keyboard Return *is* the newline key, so hijacking it makes
+            // a multi-line note impossible to type; the Share button sends.
+            if (!isMobile && event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
               void submit();
             }

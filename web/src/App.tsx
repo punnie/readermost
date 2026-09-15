@@ -32,6 +32,7 @@ import { MobileArticleBar, MobileListBar } from "./components/MobileTopBar";
 import { MoreSheet } from "./components/MoreSheet";
 import { TabBar } from "./components/TabBar";
 import { useIsMobile } from "./useIsMobile";
+import { useViewportHeight } from "./useViewportHeight";
 import { useSwipeNavigation } from "./swipe";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
@@ -152,6 +153,7 @@ export function App() {
   const moveFeed = useMoveFeed();
   const online = useOnline();
   const isMobile = useIsMobile();
+  useViewportHeight();
 
   /** On a phone the URL decides the screen: an open item means the article. */
   const showingArticle =
@@ -795,8 +797,15 @@ export function App() {
             />
           }
         >
-          <div className="mobile-scroller" ref={articleRef}>
-            {showingArticle ? articlePane : listPane}
+          <div className="mobile-scroller">
+            {/*
+              The gesture surface is inside the scroller, never the scroller
+              itself: transforming a scrolling container is what made iOS
+              wobble sideways under a thumb.
+            */}
+            <div className="swipe-surface" ref={articleRef}>
+              {showingArticle ? articlePane : listPane}
+            </div>
           </div>
         </MobileLayout>
 
