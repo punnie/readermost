@@ -21,6 +21,8 @@ interface Props {
   onLengthFilter: (filter: LengthFilter) => void;
   /** How many fetched articles the length filter is hiding. */
   filteredOut: number;
+  /** Server-bound actions are disabled with no network. */
+  online: boolean;
   onMarkAllRead: () => void;
   onRefresh: () => void;
   onMoveFeed: (feedId: number, categoryId: number) => void;
@@ -49,6 +51,7 @@ export function ListToolbar({
   lengthFilter,
   onLengthFilter,
   filteredOut,
+  online,
   onMarkAllRead,
   onRefresh,
   onMoveFeed,
@@ -100,12 +103,22 @@ export function ListToolbar({
         </button>
       )}
 
-      <button className="btn" onClick={onMarkAllRead} title="Mark everything here as read">
+      <button
+        className="btn"
+        onClick={onMarkAllRead}
+        disabled={!online}
+        title={online ? "Mark everything here as read" : "Needs a connection"}
+      >
         Mark all read
       </button>
 
       {!isRiver && (
-        <button className="btn" onClick={onRefresh} title="Fetch new articles now">
+        <button
+          className="btn"
+          onClick={onRefresh}
+          disabled={!online}
+          title={online ? "Fetch new articles now" : "Needs a connection"}
+        >
           ↻
         </button>
       )}
@@ -197,7 +210,7 @@ export function ListToolbar({
                   <MenuItem
                     danger
                     onClick={() => {
-                      onUnsubscribe(selection.id, selection.title);
+                      onUnsubscribe(selection.id, title);
                       close();
                     }}
                   >
@@ -211,7 +224,7 @@ export function ListToolbar({
                   <MenuSeparator />
                   <MenuItem
                     onClick={() => {
-                      onRenameFolder(selection.id, selection.title);
+                      onRenameFolder(selection.id, title);
                       close();
                     }}
                   >
@@ -226,7 +239,7 @@ export function ListToolbar({
                         : "This is your only folder, so its feeds would have nowhere to go"
                     }
                     onClick={() => {
-                      onDeleteFolder(selection.id, selection.title);
+                      onDeleteFolder(selection.id, title);
                       close();
                     }}
                   >

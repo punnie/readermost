@@ -85,8 +85,8 @@ describe("matchesLength", () => {
 });
 
 describe("remembering filters", () => {
-  const feed: Selection = { kind: "feed", id: 12, title: "The Go Blog" };
-  const folder: Selection = { kind: "category", id: 12, title: "Tech" };
+  const feed: Selection = { kind: "feed", id: 12 };
+  const folder: Selection = { kind: "category", id: 12 };
 
   it("defaults to showing everything, any length", () => {
     stubStorage();

@@ -175,6 +175,35 @@ services.readermost = {
 Secrets go through systemd `LoadCredential`, never into `settings` — that is
 rendered into the world-readable Nix store.
 
+## Installing it
+
+Readermost is a progressive web app: open it in a browser and use *Install* (or
+*Add to Home Screen*) to get it in its own window, launching straight to your
+unread list.
+
+Once installed it opens with no network and shows whatever you had already
+loaded — the app shell is precached by a service worker, and the articles,
+folders and shared items you have fetched are kept in IndexedDB for a week.
+Anything that needs the server is disabled while offline, with a banner saying
+so; nothing is queued for later, so there is no sync to go wrong.
+
+Signing out clears that cache, because it outlives the session cookie and the
+next person to use the browser profile must not inherit your reading.
+
+### URLs
+
+Every view has an address, so the back button, bookmarks and reloads all work:
+
+```
+/unread  /all  /starred        /feed/12        /folder/5
+/feed/12/345   ← article open  /shared         /shared/<post id>
+```
+
+**Only `/shared/<post id>` is worth sending to anyone else.** Miniflux numbers
+feeds and articles per user, so `/feed/12` is a durable bookmark for *you* on
+any of your devices, but opens a different feed for a friend. Mattermost post
+IDs are global, so a link to a shared item resolves the same for everybody.
+
 ## Keyboard
 
 `j`/`k` next/previous · `o` open · `m` toggle read · `s` star · `S` share ·

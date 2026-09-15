@@ -896,3 +896,14 @@ a {
   font-size: 12px;
   line-height: 1;
 }
+
+/* Shown across the top when the browser reports no network. */
+.offline-banner {
+  grid-column: 1 / -1;
+  background: var(--star);
+  color: #1b1b19;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}

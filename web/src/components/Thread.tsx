@@ -13,6 +13,8 @@ interface Props {
   placeholder?: string;
   /** Bump to focus the reply box; a counter so repeats still fire. */
   focusSignal?: number;
+  /** Commenting needs a connection. */
+  online?: boolean;
 }
 
 /** A shared link's comment thread, with its reply box. */
@@ -22,6 +24,7 @@ export function Thread({
   expandedByDefault = false,
   placeholder,
   focusSignal = 0,
+  online = true,
 }: Props) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
@@ -90,10 +93,18 @@ export function Thread({
           ref={inputRef}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={placeholder ?? (replies.length ? "Reply…" : "Start the discussion…")}
-          disabled={comment.isPending}
+          placeholder={
+            online
+              ? (placeholder ?? (replies.length ? "Reply…" : "Start the discussion…"))
+              : "Offline — you can read, but not reply"
+          }
+          disabled={comment.isPending || !online}
         />
-        <button className="btn" type="submit" disabled={comment.isPending || !draft.trim()}>
+        <button
+          className="btn"
+          type="submit"
+          disabled={comment.isPending || !draft.trim() || !online}
+        >
           {comment.isPending ? "…" : "Send"}
         </button>
       </form>

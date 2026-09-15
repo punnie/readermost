@@ -120,12 +120,12 @@ export function Sidebar({
             <div key={category.id} className={dropTarget === category.id ? "drop-target" : ""}>
               <button
                 className={`nav-item ${
-                  isSelected({ kind: "category", id: category.id, title: category.title })
+                  isSelected({ kind: "category", id: category.id })
                     ? "selected"
                     : ""
                 } ${category.unread > 0 ? "has-unread" : ""}`}
                 onClick={() =>
-                  onSelect({ kind: "category", id: category.id, title: category.title })
+                  onSelect({ kind: "category", id: category.id })
                 }
                 {...handlers}
               >
@@ -149,11 +149,11 @@ export function Sidebar({
                   <button
                     key={feed.id}
                     className={`nav-item feed ${
-                      isSelected({ kind: "feed", id: feed.id, title: feed.title })
+                      isSelected({ kind: "feed", id: feed.id })
                         ? "selected"
                         : ""
                     } ${feed.unread > 0 ? "has-unread" : ""}`}
-                    onClick={() => onSelect({ kind: "feed", id: feed.id, title: feed.title })}
+                    onClick={() => onSelect({ kind: "feed", id: feed.id })}
                     title={feed.error || feed.title}
                     draggable
                     onDragStart={(event) => {

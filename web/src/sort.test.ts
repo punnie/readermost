@@ -39,9 +39,9 @@ describe("sortQuery", () => {
 describe("sortKey", () => {
   it("gives every feed, folder and view its own key", () => {
     const keys = new Set([
-      sortKey({ kind: "feed", id: 1, title: "a" }),
-      sortKey({ kind: "feed", id: 2, title: "b" }),
-      sortKey({ kind: "category", id: 1, title: "c" }),
+      sortKey({ kind: "feed", id: 1 }),
+      sortKey({ kind: "feed", id: 2 }),
+      sortKey({ kind: "category", id: 1 }),
       sortKey({ kind: "unread" }),
       sortKey({ kind: "starred" }),
     ]);
@@ -49,15 +49,15 @@ describe("sortKey", () => {
   });
 
   it("does not confuse a feed with a folder of the same id", () => {
-    expect(sortKey({ kind: "feed", id: 3, title: "x" })).not.toBe(
-      sortKey({ kind: "category", id: 3, title: "x" }),
+    expect(sortKey({ kind: "feed", id: 3 })).not.toBe(
+      sortKey({ kind: "category", id: 3 }),
     );
   });
 });
 
 describe("remembering a sort order", () => {
-  const feed: Selection = { kind: "feed", id: 12, title: "The Go Blog" };
-  const other: Selection = { kind: "feed", id: 13, title: "Lobsters" };
+  const feed: Selection = { kind: "feed", id: 12 };
+  const other: Selection = { kind: "feed", id: 13 };
 
   it("defaults to newest when nothing is stored", () => {
     stubStorage();

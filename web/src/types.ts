@@ -102,14 +102,19 @@ export interface ThreadMessage {
   is_root: boolean;
 }
 
-/** What the middle pane is currently listing. */
+/**
+ * What the middle pane is currently listing.
+ *
+ * Carries no title: a selection is addressable by URL, and a URL has only the
+ * id. Titles are looked up from the tree wherever they are shown.
+ */
 export type Selection =
   | { kind: "all" }
   | { kind: "unread" }
   | { kind: "starred" }
   | { kind: "shared" }
-  | { kind: "category"; id: number; title: string }
-  | { kind: "feed"; id: number; title: string };
+  | { kind: "category"; id: number }
+  | { kind: "feed"; id: number };
 
 /** Whether an article already has a discussion in the shared channel. */
 export interface ShareLookup {

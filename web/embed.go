@@ -39,8 +39,16 @@ func Handler() (http.Handler, error) {
 			return
 		}
 
+		// Go's mime table has no entry for .webmanifest, so http.FileServer
+		// would sniff it as text and some browsers then refuse the manifest —
+		// which fails as "not installable" with nothing in the console.
+		if strings.HasSuffix(path, ".webmanifest") {
+			w.Header().Set("Content-Type", "application/manifest+json")
+		}
+
 		// Vite fingerprints asset filenames, so they can be cached hard;
-		// index.html must not be.
+		// index.html must not be. Nor may the service worker: a stale sw.js
+		// would pin the app to an old build indefinitely.
 		if strings.HasPrefix(path, "assets/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {

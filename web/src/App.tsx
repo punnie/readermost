@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 import { ApiError, api } from "./api";
 import {
@@ -24,6 +25,9 @@ import { Settings } from "./components/Settings";
 import { NewFolder } from "./components/NewFolder";
 import { ListToolbar } from "./components/ListToolbar";
 import { useLiveUpdates } from "./useLiveUpdates";
+import { useOnline } from "./offline";
+import { clearPersistedCache } from "./persist";
+import { pathFor, routeFromPath, sameSelection } from "./routes";
 import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
 import {
   matchesLength,
@@ -52,7 +56,11 @@ function SignIn() {
   );
 }
 
-function selectionTitle(selection: Selection): string {
+/**
+ * A selection's name. Feeds and folders are addressed by id, so the name lives
+ * in the tree — and is briefly unknown on a cold load from a deep link.
+ */
+function selectionTitle(selection: Selection, tree?: Tree): string {
   switch (selection.kind) {
     case "all":
       return "All items";
@@ -62,8 +70,14 @@ function selectionTitle(selection: Selection): string {
       return "Starred";
     case "shared":
       return "Shared by friends";
-    default:
-      return selection.title;
+    case "category":
+      return tree?.categories.find((category) => category.id === selection.id)?.title ?? "Folder";
+    case "feed":
+      return (
+        tree?.categories
+          .flatMap((category) => category.feeds)
+          .find((feed) => feed.id === selection.id)?.title ?? "Feed"
+      );
   }
 }
 
@@ -72,8 +86,25 @@ export function App() {
   const me = useMe();
   const tree = useTree();
 
-  const [selection, setSelection] = useState<Selection>({ kind: "unread" });
-  const [selectedEntryId, setSelectedEntryId] = useState<number>();
+  const [location, navigate] = useLocation();
+  const route = useMemo(() => routeFromPath(location), [location]);
+  const selection = route.selection;
+  const selectedEntryId = route.entryID;
+
+  /** Change what is showing by changing the address. */
+  const setSelection = useCallback(
+    (next: Selection) => navigate(pathFor(next)),
+    [navigate],
+  );
+
+  /**
+   * Open an article. Replaces rather than pushes: stepping through a feed with
+   * j would otherwise bury the previous feed under a hundred history entries.
+   */
+  const setSelectedEntryId = useCallback(
+    (entryID: number | undefined) => navigate(pathFor(selection, entryID), { replace: true }),
+    [navigate, selection],
+  );
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [sharing, setSharing] = useState<Entry>();
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -83,7 +114,13 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
-  const [selectedSharedPost, setSelectedSharedPost] = useState<string>();
+  // The open shared post is addressable too — and unlike feed ids, Mattermost
+  // post ids are global, so this one URL really is shareable with a friend.
+  const selectedSharedPost = route.postID;
+  const setSelectedSharedPost = useCallback(
+    (postID: string) => navigate(pathFor({ kind: "shared" }, postID), { replace: true }),
+    [navigate],
+  );
   // Set after sharing, to scroll the article's discussion into view and focus it.
   const [focusDiscussion, setFocusDiscussion] = useState(0);
   const [sort, setSort] = useState<SortOrder>(() => readSort({ kind: "unread" }));
@@ -93,6 +130,9 @@ export function App() {
   const [lengthFilter, setLengthFilter] = useState<LengthFilter>(() =>
     readLengthFilter({ kind: "unread" }),
   );
+
+  const online = useOnline();
+  const restoring = useIsRestoring();
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
@@ -161,10 +201,8 @@ export function App() {
    * The cache is written before the request goes out, mirroring openEntry —
    * that is what keeps j/k through the river feeling immediate.
    */
-  const openShared = useCallback(
+  const markSharedRead = useCallback(
     (postID: string) => {
-      setSelectedSharedPost(postID);
-
       const current = queryClient.getQueryData<SharedRiver>(["shared"]);
       const item = current?.items.find((candidate) => candidate.post_id === postID);
       if (!item || (item.read && item.unseen_replies === 0)) return;
@@ -185,6 +223,14 @@ export function App() {
       void api.markRiverRead(postID);
     },
     [queryClient],
+  );
+
+  const openShared = useCallback(
+    (postID: string) => {
+      setSelectedSharedPost(postID);
+      markSharedRead(postID);
+    },
+    [setSelectedSharedPost, markSharedRead],
   );
 
   const moveFeed = useCallback(
@@ -317,10 +363,12 @@ export function App() {
 
   const openDiscussion = useCallback(
     (postId: string) => {
-      openShared(postId);
-      setSelection({ kind: "shared" });
+      // One navigation, so the back button returns to the article rather than
+      // to the river with nothing open.
+      navigate(pathFor({ kind: "shared" }, postId));
+      markSharedRead(postId);
     },
-    [openShared],
+    [navigate, markSharedRead],
   );
 
   // Marking read is batched: flicking through with j should cost one request,
@@ -360,15 +408,15 @@ export function App() {
   );
 
   // Changing folders should land on nothing selected rather than a stale entry.
+  // Moving to a different feed loads that feed's remembered preferences. The
+  // route object is rebuilt on every navigation, so compare by value.
   const previousSelection = useRef(selection);
   useEffect(() => {
-    if (previousSelection.current !== selection) {
-      previousSelection.current = selection;
-      setSelectedEntryId(undefined);
-      setSort(readSort(selection));
-      setStatusFilter(readStatusFilter(selection));
-      setLengthFilter(readLengthFilter(selection));
-    }
+    if (sameSelection(previousSelection.current, selection)) return;
+    previousSelection.current = selection;
+    setSort(readSort(selection));
+    setStatusFilter(readStatusFilter(selection));
+    setLengthFilter(readLengthFilter(selection));
   }, [selection]);
 
   const changeSort = useCallback(
@@ -497,12 +545,25 @@ export function App() {
     },
   });
 
-  if (me.isLoading) {
+  if (restoring || (me.isLoading && !me.data)) {
     return <div className="centered">Loading…</div>;
   }
-  if (me.isError) {
+  // A failed refetch with a restored session is an offline session, not an
+  // expired one — only a real 401 means sign in again.
+  if (me.isError && !me.data) {
     const unauthorized = me.error instanceof ApiError && me.error.isUnauthorized;
-    return unauthorized ? <SignIn /> : <div className="centered">Could not reach the server.</div>;
+    return unauthorized ? (
+      <SignIn />
+    ) : (
+      <div className="centered">
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Readermost</h2>
+          <p style={{ color: "var(--text-muted)" }}>
+            Can't reach the server, and there's nothing saved on this device yet.
+          </p>
+        </div>
+      </div>
+    );
   }
   if (me.data && !me.data.onboarded && !onboarded) {
     return (
@@ -518,6 +579,12 @@ export function App() {
 
   return (
     <div className="app">
+      {!online && (
+        <div className="offline-banner">
+          You're offline — showing saved articles. Changes are paused.
+        </div>
+      )}
+
       <header className="topbar">
         <h1>Readermost</h1>
         <button className="btn" onClick={() => void api.refreshAll()}>
@@ -537,7 +604,16 @@ export function App() {
         <button
           className="btn"
           onClick={() => {
-            void api.logout().then(() => window.location.reload());
+            void api
+              .logout()
+              .catch(() => {})
+              // Clear before reloading: the cache outlives the session cookie,
+              // and the next person on this browser must not inherit it.
+              .finally(async () => {
+                queryClient.clear();
+                await clearPersistedCache();
+                window.location.href = "/";
+              });
           }}
         >
           Sign out
@@ -572,7 +648,7 @@ export function App() {
       <div className="list-column">
         <ListToolbar
           selection={selection}
-          title={selectionTitle(selection)}
+          title={selectionTitle(selection, tree.data)}
           unread={
             selection.kind === "shared"
               ? (shared.data?.unread ?? 0)
@@ -585,6 +661,7 @@ export function App() {
           onStatusFilter={changeStatusFilter}
           lengthFilter={lengthFilter}
           onLengthFilter={changeLengthFilter}
+          online={online}
           filteredOut={(entries.data?.entries.length ?? 0) - list.length}
           onMarkAllRead={markAllRead}
           onRefresh={refreshSelection}
@@ -607,7 +684,7 @@ export function App() {
             selectedId={selectedEntryId}
             onSelect={openEntry}
             isLoading={entries.isLoading}
-            title={selectionTitle(selection)}
+            title={selectionTitle(selection, tree.data)}
           />
         )}
       </div>
