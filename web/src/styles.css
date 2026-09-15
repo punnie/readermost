@@ -907,3 +907,154 @@ a {
   font-weight: 600;
   text-align: center;
 }
+
+/* ---------- subscriptions dialog ---------- */
+
+.dialog.subscriptions {
+  width: min(640px, 100%);
+}
+
+.subs-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.subs-header h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.subs-count {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.subs-hint {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.subs-list {
+  max-height: 52vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.subs-folder {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 4px 6px;
+  margin-bottom: 8px;
+}
+
+/* The folder a dragged feed would land in. */
+.subs-folder.drop-target {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.subs-folder-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.subs-folder-head .name {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.subs-folder-head .subs-count {
+  flex: 1;
+}
+
+.subs-empty {
+  padding: 6px 6px 6px 30px;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+.subs-feed {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px 4px 8px;
+  border-radius: 4px;
+}
+
+.subs-feed:hover {
+  background: var(--bg-hover);
+}
+
+.subs-feed .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+/* The one place a grab cursor belongs: a handle whose only job is dragging. */
+.subs-feed .grip {
+  display: inline-flex;
+  color: var(--text-faint);
+  cursor: grab;
+}
+
+.subs-feed:active .grip {
+  cursor: grabbing;
+}
+
+/* Icon buttons stay quiet until the row is hovered or they are focused, so a
+   long list reads as names rather than a wall of controls. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.subs-feed:hover .icon-btn,
+.subs-folder-head:hover .icon-btn,
+.icon-btn:focus-visible {
+  opacity: 1;
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.icon-btn.danger:hover {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+.subs-section {
+  margin: 0 0 8px;
+}
+
+.subs-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}

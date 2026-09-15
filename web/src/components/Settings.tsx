@@ -2,6 +2,10 @@ import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api";
+import { feedDragProps, folderDropProps } from "../dnd";
+import { useMoveFeed } from "../hooks";
+import { FeedIcon } from "./FeedIcon";
+import { Icon } from "./Icon";
 import type { Tree } from "../types";
 
 interface Props {
@@ -9,26 +13,22 @@ interface Props {
   onClose: () => void;
 }
 
-/** Subscription housekeeping: rename, move, unsubscribe, import and export. */
+/** Subscription housekeeping: drag feeds between folders, rename, unsubscribe. */
 export function Settings({ tree, onClose }: Props) {
   const queryClient = useQueryClient();
+  const moveFeed = useMoveFeed();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string>();
+  const [dropTarget, setDropTarget] = useState<number>();
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["tree"] });
     void queryClient.invalidateQueries({ queryKey: ["entries"] });
   };
 
-  const rename = useMutation({
+  const renameFeed = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
       api.updateFeed(id, { title }),
-    onSuccess: invalidate,
-  });
-
-  const move = useMutation({
-    mutationFn: ({ id, categoryId }: { id: number; categoryId: number }) =>
-      api.updateFeed(id, { category_id: categoryId }),
     onSuccess: invalidate,
   });
 
@@ -58,6 +58,8 @@ export function Settings({ tree, onClose }: Props) {
       setStatus(error instanceof Error ? error.message : "Import failed"),
   });
 
+  const totalFeeds = tree?.categories.reduce((sum, c) => sum + c.feeds.length, 0) ?? 0;
+
   return (
     <div
       className="backdrop"
@@ -65,11 +67,15 @@ export function Settings({ tree, onClose }: Props) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="dialog" role="dialog" aria-modal="true" style={{ width: "min(680px, 100%)" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-          <h3 style={{ flex: 1 }}>Subscriptions</h3>
+      <div className="dialog subscriptions" role="dialog" aria-modal="true">
+        <header className="subs-header">
+          <h3>Subscriptions</h3>
+          <span className="subs-count">
+            {totalFeeds} feed{totalFeeds === 1 ? "" : "s"} in{" "}
+            {tree?.categories.length ?? 0} folders
+          </span>
           <button
-            className="btn-link"
+            className="btn"
             onClick={() => {
               const title = window.prompt("New folder name");
               if (title?.trim()) createCategory.mutate(title.trim());
@@ -77,90 +83,96 @@ export function Settings({ tree, onClose }: Props) {
           >
             New folder
           </button>
-        </div>
+        </header>
 
-        <div style={{ maxHeight: "50vh", overflowY: "auto", marginBottom: "12px" }}>
-          {tree?.categories.map((category) => (
-            <div key={category.id} style={{ marginBottom: "14px" }}>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <strong style={{ flex: 1 }}>{category.title}</strong>
-                <button
-                  className="btn-link"
-                  onClick={() => {
-                    const title = window.prompt("Rename folder", category.title);
-                    if (title?.trim()) {
-                      renameCategory.mutate({ id: category.id, title: title.trim() });
-                    }
-                  }}
-                >
-                  rename
-                </button>
-              </div>
+        <p className="subs-hint">Drag a feed onto a folder to move it.</p>
 
-              {category.feeds.map((feed) => (
-                <div
-                  key={feed.id}
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    alignItems: "center",
-                    padding: "3px 0 3px 12px",
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={feed.error || feed.feed_url}
-                  >
-                    {feed.title}
-                    {feed.error && <span className="feed-error"> !</span>}
-                  </span>
+        <div className="subs-list">
+          {tree?.categories.map((category) => {
+            const drop = folderDropProps(category.id, moveFeed, setDropTarget);
 
-                  <select
-                    value={category.id}
-                    onChange={(event) =>
-                      move.mutate({ id: feed.id, categoryId: Number(event.target.value) })
-                    }
-                    style={{ fontSize: "11px" }}
-                  >
-                    {tree.categories.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.title}
-                      </option>
-                    ))}
-                  </select>
-
+            return (
+              <section
+                key={category.id}
+                className={`subs-folder ${dropTarget === category.id ? "drop-target" : ""}`}
+                {...drop}
+              >
+                <div className="subs-folder-head">
+                  <Icon name="folder" />
+                  <span className="name">{category.title}</span>
+                  <span className="subs-count">{category.feeds.length}</span>
                   <button
-                    className="btn-link"
+                    className="icon-btn"
+                    aria-label={`Rename the folder ${category.title}`}
+                    title="Rename folder"
                     onClick={() => {
-                      const title = window.prompt("Rename feed", feed.title);
-                      if (title?.trim()) rename.mutate({ id: feed.id, title: title.trim() });
-                    }}
-                  >
-                    rename
-                  </button>
-                  <button
-                    className="btn-link"
-                    style={{ color: "var(--danger)" }}
-                    onClick={() => {
-                      if (window.confirm(`Unsubscribe from ${feed.title}?`)) {
-                        unsubscribe.mutate(feed.id);
+                      const title = window.prompt("Rename folder", category.title);
+                      if (title?.trim()) {
+                        renameCategory.mutate({ id: category.id, title: title.trim() });
                       }
                     }}
                   >
-                    remove
+                    <Icon name="pencil" />
                   </button>
                 </div>
-              ))}
-            </div>
-          ))}
+
+                {category.feeds.length === 0 && (
+                  <div className="subs-empty">Empty — drop a feed here</div>
+                )}
+
+                {category.feeds.map((feed) => (
+                  <div
+                    key={feed.id}
+                    className="subs-feed"
+                    {...feedDragProps(feed.id, category.id)}
+                    // A feed row stands in for the folder it sits in, so
+                    // dropping onto a sibling does the obvious thing.
+                    {...drop}
+                  >
+                    <span className="grip" title="Drag to another folder">
+                      <Icon name="grip" size={14} />
+                    </span>
+                    <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
+                    <span className="name" title={feed.error || feed.feed_url}>
+                      {feed.title}
+                    </span>
+                    {feed.error && (
+                      <span className="feed-error" title={feed.error}>
+                        !
+                      </span>
+                    )}
+
+                    <button
+                      className="icon-btn"
+                      aria-label={`Rename ${feed.title}`}
+                      title="Rename feed"
+                      onClick={() => {
+                        const title = window.prompt("Rename feed", feed.title);
+                        if (title?.trim()) renameFeed.mutate({ id: feed.id, title: title.trim() });
+                      }}
+                    >
+                      <Icon name="pencil" />
+                    </button>
+                    <button
+                      className="icon-btn danger"
+                      aria-label={`Unsubscribe from ${feed.title}`}
+                      title="Unsubscribe"
+                      onClick={() => {
+                        if (window.confirm(`Unsubscribe from "${feed.title}"?`)) {
+                          unsubscribe.mutate(feed.id);
+                        }
+                      }}
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  </div>
+                ))}
+              </section>
+            );
+          })}
         </div>
 
-        <h3>Import and export</h3>
+        <h3 className="subs-section">Import and export</h3>
         <input
           ref={fileRef}
           type="file"
@@ -185,11 +197,7 @@ export function Settings({ tree, onClose }: Props) {
           </a>
         </div>
 
-        {status && (
-          <div style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-muted)" }}>
-            {status}
-          </div>
-        )}
+        {status && <div className="subs-status">{status}</div>}
 
         <div className="dialog-actions">
           <button className="btn" onClick={onClose}>

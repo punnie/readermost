@@ -9,6 +9,7 @@ import {
   useMe,
   useReadBatcher,
   useSetStatus,
+  useMoveFeed,
   useToggleStar,
   useTree,
 } from "./hooks";
@@ -131,6 +132,7 @@ export function App() {
     readLengthFilter({ kind: "unread" }),
   );
 
+  const moveFeed = useMoveFeed();
   const online = useOnline();
   const restoring = useIsRestoring();
 
@@ -233,51 +235,6 @@ export function App() {
     [setSelectedSharedPost, markSharedRead],
   );
 
-  const moveFeed = useCallback(
-    (feedId: number, categoryId: number) => {
-      queryClient.setQueryData<Tree>(["tree"], (old) => {
-        if (!old) return old;
-
-        let moved: Tree["categories"][number]["feeds"][number] | undefined;
-        const stripped = old.categories.map((category) => {
-          const found = category.feeds.find((feed) => feed.id === feedId);
-          if (!found) return category;
-          moved = found;
-          return {
-            ...category,
-            feeds: category.feeds.filter((feed) => feed.id !== feedId),
-            unread: category.unread - found.unread,
-          };
-        });
-        if (!moved) return old;
-
-        return {
-          ...old,
-          categories: stripped.map((category) =>
-            category.id === categoryId
-              ? {
-                  ...category,
-                  feeds: [...category.feeds, moved!].sort((a, b) =>
-                    a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
-                  ),
-                  unread: category.unread + moved!.unread,
-                }
-              : category,
-          ),
-        };
-      });
-
-      void api
-        .updateFeed(feedId, { category_id: categoryId })
-        .catch(() => {})
-        .finally(() => {
-          // Reconcile with the server whatever happened, so a rejected move
-          // snaps back rather than leaving the tree lying.
-          void queryClient.invalidateQueries({ queryKey: ["tree"] });
-        });
-    },
-    [queryClient],
-  );
 
   const refreshTree = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["tree"] });

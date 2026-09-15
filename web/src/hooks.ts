@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   useMutation,
   useQuery,
@@ -8,7 +8,7 @@ import {
 import { api, type EntryQuery } from "./api";
 import { sortQuery, type SortOrder } from "./sort";
 import { statusesFor, type LengthFilter, type StatusFilter } from "./filters";
-import type { Entry, Selection } from "./types";
+import type { Entry, Selection, Tree } from "./types";
 
 export function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me, retry: false });
@@ -213,4 +213,60 @@ export function useKeyboard(handlers: Record<string, (event: KeyboardEvent) => v
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
+}
+
+/**
+ * Move a feed into another folder, optimistically.
+ *
+ * Shared by the sidebar's drag-and-drop and the Subscriptions dialog, so a feed
+ * lands in the same place whichever way you drag it. The tree is rewritten
+ * before the request goes out and reconciled with the server afterwards, so a
+ * rejected move snaps back rather than leaving the tree lying.
+ */
+export function useMoveFeed() {
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    (feedID: number, categoryID: number) => {
+      queryClient.setQueryData<Tree>(["tree"], (old) => {
+        if (!old) return old;
+
+        let moved: Tree["categories"][number]["feeds"][number] | undefined;
+        const stripped = old.categories.map((category) => {
+          const found = category.feeds.find((feed) => feed.id === feedID);
+          if (!found) return category;
+          moved = found;
+          return {
+            ...category,
+            feeds: category.feeds.filter((feed) => feed.id !== feedID),
+            unread: category.unread - found.unread,
+          };
+        });
+        if (!moved) return old;
+
+        return {
+          ...old,
+          categories: stripped.map((category) =>
+            category.id === categoryID
+              ? {
+                  ...category,
+                  feeds: [...category.feeds, moved!].sort((a, b) =>
+                    a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
+                  ),
+                  unread: category.unread + moved!.unread,
+                }
+              : category,
+          ),
+        };
+      });
+
+      void api
+        .updateFeed(feedID, { category_id: categoryID })
+        .catch(() => {})
+        .finally(() => {
+          void queryClient.invalidateQueries({ queryKey: ["tree"] });
+        });
+    },
+    [queryClient],
+  );
 }

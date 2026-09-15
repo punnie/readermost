@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { FeedIcon } from "./FeedIcon";
+import { feedDragProps, folderDropProps } from "../dnd";
 import type { Selection, Tree } from "../types";
 
 interface Props {
@@ -38,25 +39,9 @@ export function Sidebar({
     return true;
   };
 
-  /** Shared by the folder row and its feed list, so both accept a drop. */
-  const dropHandlers = (categoryId: number) => ({
-    onDragOver: (event: React.DragEvent) => {
-      // Without preventDefault the browser refuses the drop entirely.
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      setDropTarget(categoryId);
-    },
-    onDragLeave: () => setDropTarget((current) => (current === categoryId ? undefined : current)),
-    onDrop: (event: React.DragEvent) => {
-      event.preventDefault();
-      setDropTarget(undefined);
-
-      const feedId = Number(event.dataTransfer.getData("application/x-readermost-feed"));
-      const from = Number(event.dataTransfer.getData("application/x-readermost-from"));
-      if (!feedId || from === categoryId) return;
-      onMoveFeed(feedId, categoryId);
-    },
-  });
+  /** The folder row and its feeds all accept a drop, meaning that folder. */
+  const dropHandlers = (categoryId: number) =>
+    folderDropProps(categoryId, onMoveFeed, setDropTarget);
 
   return (
     <nav className="pane sidebar">
@@ -155,18 +140,7 @@ export function Sidebar({
                     } ${feed.unread > 0 ? "has-unread" : ""}`}
                     onClick={() => onSelect({ kind: "feed", id: feed.id })}
                     title={feed.error || feed.title}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData(
-                        "application/x-readermost-feed",
-                        String(feed.id),
-                      );
-                      event.dataTransfer.setData(
-                        "application/x-readermost-from",
-                        String(category.id),
-                      );
-                    }}
+                    {...feedDragProps(feed.id, category.id)}
                     // A feed dropped onto a sibling means the folder it is in.
                     {...handlers}
                   >
