@@ -32,6 +32,7 @@ type sharedLink struct {
 	FeedSiteURL string `json:"feed_site_url,omitempty"`
 	Author      string `json:"author,omitempty"`
 	PublishedAt string `json:"published_at,omitempty"`
+	Excerpt     string `json:"excerpt,omitempty"`
 	// FromReadermost distinguishes a rich share from a bare pasted URL.
 	FromReadermost bool `json:"from_readermost"`
 }
@@ -137,6 +138,7 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 			FeedSiteURL:    shared.FeedSiteURL,
 			Author:         shared.Author,
 			PublishedAt:    shared.PublishedAt,
+			Excerpt:        shared.Excerpt,
 			FromReadermost: true,
 		}
 	}
@@ -207,6 +209,24 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		return errBadRequest("this entry has no link to share")
 	}
 
+	// Refuse a second copy from the same person. The UI already turns the
+	// button into "Discuss" once something is shared, but a double-click or a
+	// second tab would otherwise still post twice.
+	//
+	// Only the same author is blocked: two people independently finding the
+	// same article is a normal thing to want to say something about.
+	if existing, err := s.lookupShare(ctx, identity.Mattermost(s.mm), entry.URL); err != nil {
+		// An index failure must not block sharing; worst case is a duplicate.
+		s.log.Warn("duplicate share check failed", "error", err)
+	} else if existing != nil && existing.UserID == identity.User.MattermostUserID {
+		s.writeJSON(w, http.StatusConflict, map[string]any{
+			"error":     "you have already shared this article",
+			"post_id":   existing.PostID,
+			"permalink": s.mm.BaseURL() + "/_redirect/pl/" + existing.PostID,
+		})
+		return nil
+	}
+
 	post := &mattermost.Post{
 		ChannelID: s.cfg.Mattermost.SharedChannelID,
 		Message:   shareMessage(request.Message, entry),
@@ -217,6 +237,7 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		EntryURL: entry.URL,
 		Title:    entry.Title,
 		Author:   entry.Author,
+		Excerpt:  excerptFrom(entry.Content),
 	}
 	if !entry.PublishedAt.IsZero() {
 		link.PublishedAt = entry.PublishedAt.UTC().Format(time.RFC3339)
@@ -233,6 +254,12 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 	if err != nil {
 		return err
 	}
+
+	s.noteShare(entry.URL, &shareRecord{
+		PostID:   created.ID,
+		UserID:   identity.User.MattermostUserID,
+		CreateAt: created.CreateAt,
+	})
 
 	s.writeJSON(w, http.StatusCreated, sharedItem{
 		PostID:    created.ID,

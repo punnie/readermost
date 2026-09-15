@@ -102,4 +102,7 @@ type SharedLink struct {
 	FeedSiteURL string `json:"feed_site_url"`
 	Author      string `json:"author"`
 	PublishedAt string `json:"published_at"`
+	// Excerpt is a short plain-text preview so the river can show what an
+	// article is about without refetching it. Absent on older shares.
+	Excerpt string `json:"excerpt,omitempty"`
 }

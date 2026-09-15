@@ -32,7 +32,10 @@ type Server struct {
 	auth *auth.Service
 	mm   *mattermost.Client
 	hub  *hub.Hub
-	log  *slog.Logger
+
+	// shares caches which articles already have a discussion.
+	shares shareIndex
+	log    *slog.Logger
 }
 
 // New builds the API server.
@@ -80,6 +83,7 @@ func (s *Server) Routes() *http.ServeMux {
 	// Sharing
 	mux.Handle("GET /api/shared", s.protected(s.handleSharedRiver))
 	mux.Handle("POST /api/share", s.mutating(s.handleShare))
+	mux.Handle("GET /api/shared/lookup", s.protected(s.handleLookupShare))
 	mux.Handle("GET /api/shared/{id}/thread", s.protected(s.handleThread))
 	mux.Handle("POST /api/shared/{id}/comment", s.mutating(s.handleComment))
 

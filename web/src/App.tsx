@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, api } from "./api";
 import {
@@ -67,6 +67,7 @@ export function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
+  const [focusSharedPost, setFocusSharedPost] = useState<string>();
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
@@ -77,6 +78,20 @@ export function App() {
 
   const list = useMemo(() => entries.data?.entries ?? [], [entries.data]);
   const selectedEntry = list.find((entry) => entry.id === selectedEntryId);
+
+  // Does the selected article already have a discussion? Owned here rather than
+  // in EntryView so the S shortcut and the button agree on the answer.
+  const discussion = useQuery({
+    queryKey: ["share-lookup", selectedEntry?.url],
+    queryFn: () => api.lookupShare(selectedEntry!.url),
+    enabled: Boolean(selectedEntry?.url),
+    staleTime: 15_000,
+  });
+
+  const openDiscussion = useCallback((postId: string) => {
+    setFocusSharedPost(postId);
+    setSelection({ kind: "shared" });
+  }, []);
 
   // Marking read is batched: flicking through with j should cost one request,
   // not one per article.
@@ -144,7 +159,15 @@ export function App() {
     Enter: () => selectedEntry && window.open(selectedEntry.url, "_blank", "noopener"),
     v: () => selectedEntry && window.open(selectedEntry.url, "_blank", "noopener"),
     s: () => selectedEntry && toggleStar.mutate(selectedEntry.id),
-    S: () => selectedEntry && setSharing(selectedEntry),
+    S: () => {
+      if (!selectedEntry) return;
+      // Same rule as the button: never create a second copy of a discussion.
+      if (discussion.data?.shared && discussion.data.post_id) {
+        openDiscussion(discussion.data.post_id);
+        return;
+      }
+      setSharing(selectedEntry);
+    },
     m: () =>
       selectedEntry &&
       setStatus.mutate({
@@ -260,7 +283,10 @@ export function App() {
 
       {selection.kind === "shared" ? (
         <div className="pane entry-list" style={{ gridColumn: "2 / -1" }}>
-          <SharedRiver />
+          <SharedRiver
+            focusPostId={focusSharedPost}
+            onFocusHandled={() => setFocusSharedPost(undefined)}
+          />
         </div>
       ) : (
         <>
@@ -280,7 +306,10 @@ export function App() {
                 status: entry.status === "read" ? "unread" : "read",
               })
             }
+            discussion={discussion.data}
+            discussionLoading={discussion.isLoading}
             onShare={setSharing}
+            onDiscuss={openDiscussion}
           />
         </>
       )}
@@ -290,9 +319,15 @@ export function App() {
           entry={sharing}
           onCancel={() => setSharing(undefined)}
           onShare={async (message) => {
-            await api.share(sharing.id, message);
+            const created = await api.share(sharing.id, message);
             setSharing(undefined);
             void queryClient.invalidateQueries({ queryKey: ["shared"] });
+            void queryClient.invalidateQueries({ queryKey: ["share-lookup"] });
+
+            // Drop the user into the discussion they just started, rather than
+            // leaving them on the article wondering whether it worked.
+            setFocusSharedPost(created.post_id);
+            setSelection({ kind: "shared" });
           }}
         />
       )}

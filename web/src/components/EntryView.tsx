@@ -1,22 +1,37 @@
-import type { Entry } from "../types";
+import type { Entry, ShareLookup } from "../types";
 
 interface Props {
   entry?: Entry;
+  /** Existing discussion for this article, if the channel already has one. */
+  discussion?: ShareLookup;
+  discussionLoading: boolean;
   onToggleStar: (id: number) => void;
   onToggleRead: (entry: Entry) => void;
   onShare: (entry: Entry) => void;
+  onDiscuss: (postId: string) => void;
 }
 
-export function EntryView({ entry, onToggleStar, onToggleRead, onShare }: Props) {
+export function EntryView({
+  entry,
+  discussion,
+  discussionLoading,
+  onToggleStar,
+  onToggleRead,
+  onShare,
+  onDiscuss,
+}: Props) {
   if (!entry) {
     return (
       <div className="pane reader">
-        <div className="empty">Select an article, or press <kbd>j</kbd>.</div>
+        <div className="empty">
+          Select an article, or press <kbd>j</kbd>.
+        </div>
       </div>
     );
   }
 
   const published = new Date(entry.published_at);
+  const replies = discussion?.reply_count ?? 0;
 
   return (
     <div className="pane reader">
@@ -35,9 +50,25 @@ export function EntryView({ entry, onToggleStar, onToggleRead, onShare }: Props)
         </div>
 
         <div className="article-actions">
-          <button className="btn btn-primary" onClick={() => onShare(entry)}>
-            Share to Mattermost
-          </button>
+          {discussion?.shared ? (
+            <button
+              className="btn btn-primary"
+              onClick={() => onDiscuss(discussion.post_id!)}
+            >
+              {replies > 0
+                ? `Discuss — ${replies} comment${replies === 1 ? "" : "s"}`
+                : "Discuss"}
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary"
+              disabled={discussionLoading}
+              onClick={() => onShare(entry)}
+            >
+              Share to Mattermost
+            </button>
+          )}
+
           <button className="btn" onClick={() => onToggleStar(entry.id)}>
             {entry.starred ? "★ Starred" : "☆ Star"}
           </button>
@@ -48,6 +79,22 @@ export function EntryView({ entry, onToggleStar, onToggleRead, onShare }: Props)
             Open original
           </a>
         </div>
+
+        {discussion?.shared && (
+          <div className="shared-hint">
+            Shared by{" "}
+            <strong>
+              {discussion.author?.display_name || discussion.author?.username || "someone"}
+            </strong>
+            {discussion.created_at
+              ? ` on ${new Date(discussion.created_at).toLocaleDateString()}`
+              : null}
+            .{" "}
+            <a href={discussion.permalink} target="_blank" rel="noreferrer noopener">
+              Open in Mattermost
+            </a>
+          </div>
+        )}
 
         {/*
           Feed HTML is rendered as-is because Miniflux sanitises entry content

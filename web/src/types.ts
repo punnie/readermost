@@ -70,6 +70,7 @@ export interface SharedLink {
   feed_site_url?: string;
   author?: string;
   published_at?: string;
+  excerpt?: string;
   from_readermost: boolean;
 }
 
@@ -104,3 +105,13 @@ export type Selection =
   | { kind: "shared" }
   | { kind: "category"; id: number; title: string }
   | { kind: "feed"; id: number; title: string };
+
+/** Whether an article already has a discussion in the shared channel. */
+export interface ShareLookup {
+  shared: boolean;
+  post_id?: string;
+  reply_count?: number;
+  permalink?: string;
+  created_at?: number;
+  author?: SharedAuthor;
+}

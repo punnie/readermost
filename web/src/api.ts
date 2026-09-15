@@ -4,6 +4,7 @@ import type {
   Me,
   SharedItem,
   SharedRiver,
+  ShareLookup,
   ThreadMessage,
   Tree,
 } from "./types";
@@ -174,6 +175,9 @@ export const api = {
   },
 
   markOnboarded: () => request<void>("/api/onboarded", { method: "POST" }),
+
+  lookupShare: (url: string) =>
+    request<ShareLookup>(`/api/shared/lookup?url=${encodeURIComponent(url)}`),
 
   shared: (before?: string) =>
     request<SharedRiver>(
