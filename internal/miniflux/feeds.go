@@ -194,3 +194,10 @@ func (c *Client) FeedCounters(ctx context.Context) (*FeedCounters, error) {
 	}
 	return &counters, nil
 }
+
+// RefreshCategory asks Miniflux to poll every feed in one category. Miniflux
+// does the fetching in a background process and returns immediately.
+func (c *Client) RefreshCategory(ctx context.Context, categoryID int64) error {
+	path := fmt.Sprintf("/v1/categories/%d/refresh", categoryID)
+	return c.do(ctx, http.MethodPut, path, nil, nil)
+}

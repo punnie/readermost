@@ -130,6 +130,12 @@ export const api = {
 
   refreshAll: () => request<void>("/api/feeds/refresh", { method: "POST" }),
 
+  refreshFeed: (id: number) =>
+    request<void>(`/api/feeds/${id}/refresh`, { method: "POST" }),
+
+  refreshCategory: (id: number) =>
+    request<void>(`/api/categories/${id}/refresh`, { method: "POST" }),
+
   discover: (url: string) =>
     request<{ title: string; url: string; type: string }[]>("/api/discover", {
       method: "POST",

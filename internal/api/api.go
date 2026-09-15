@@ -71,6 +71,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("POST /api/categories", s.mutating(s.handleCreateCategory))
 	mux.Handle("PUT /api/categories/{id}", s.mutating(s.handleUpdateCategory))
 	mux.Handle("DELETE /api/categories/{id}", s.mutating(s.handleDeleteCategory))
+	mux.Handle("POST /api/categories/{id}/refresh", s.mutating(s.handleRefreshCategory))
 	mux.Handle("POST /api/mark-read", s.mutating(s.handleMarkRead))
 
 	// Onboarding

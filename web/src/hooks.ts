@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 
 import { api, type EntryQuery } from "./api";
+import { sortQuery, type SortOrder } from "./sort";
 import type { Entry, Selection } from "./types";
 
 export function useMe() {
@@ -17,8 +18,8 @@ export function useTree() {
 }
 
 /** Translates a sidebar selection into the entry query it implies. */
-export function queryForSelection(selection: Selection): EntryQuery {
-  const base: EntryQuery = { limit: 100, order: "published_at", direction: "desc" };
+export function queryForSelection(selection: Selection, sort: SortOrder): EntryQuery {
+  const base: EntryQuery = { limit: 100, ...sortQuery(sort) };
 
   switch (selection.kind) {
     case "unread":
@@ -35,10 +36,11 @@ export function queryForSelection(selection: Selection): EntryQuery {
   }
 }
 
-export function useEntries(selection: Selection) {
-  const query = queryForSelection(selection);
+export function useEntries(selection: Selection, sort: SortOrder) {
+  const query = queryForSelection(selection, sort);
   return useQuery({
-    queryKey: ["entries", selection],
+    // The sort is part of the key: a different order is a different request.
+    queryKey: ["entries", selection, sort],
     queryFn: () => api.entries(query),
     enabled: selection.kind !== "shared",
   });
@@ -48,7 +50,7 @@ export function useEntries(selection: Selection) {
  * Marks entries read or unread optimistically, rolling back if the server
  * rejects it. Snappy read state is most of what makes a reader feel fast.
  */
-export function useSetStatus(selection: Selection) {
+export function useSetStatus(selection: Selection, sort: SortOrder) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -56,7 +58,7 @@ export function useSetStatus(selection: Selection) {
       api.setEntryStatus(ids, status),
 
     onMutate: async ({ ids, status }) => {
-      const key = ["entries", selection];
+      const key = ["entries", selection, sort];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
 
@@ -85,14 +87,14 @@ export function useSetStatus(selection: Selection) {
   });
 }
 
-export function useToggleStar(selection: Selection) {
+export function useToggleStar(selection: Selection, sort: SortOrder) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => api.toggleBookmark(id),
 
     onMutate: async (id) => {
-      const key = ["entries", selection];
+      const key = ["entries", selection, sort];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
 

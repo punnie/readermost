@@ -22,7 +22,9 @@ import { Welcome } from "./components/Welcome";
 import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
 import { NewFolder } from "./components/NewFolder";
+import { ListToolbar } from "./components/ListToolbar";
 import { useLiveUpdates } from "./useLiveUpdates";
+import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
 import type { Entry, Selection, SharedRiver, Tree } from "./types";
 
 function SignIn() {
@@ -75,6 +77,7 @@ export function App() {
   const [selectedSharedPost, setSelectedSharedPost] = useState<string>();
   // Set after sharing, to scroll the article's discussion into view and focus it.
   const [focusDiscussion, setFocusDiscussion] = useState(0);
+  const [sort, setSort] = useState<SortOrder>(() => readSort({ kind: "unread" }));
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
@@ -90,11 +93,39 @@ export function App() {
   const selectedSharedItem =
     sharedItems.find((item) => item.post_id === selectedSharedPost) ?? sharedItems[0];
 
-  const entries = useEntries(selection);
-  const setStatus = useSetStatus(selection);
-  const toggleStar = useToggleStar(selection);
+  const entries = useEntries(selection, sort);
+  const setStatus = useSetStatus(selection, sort);
+  const toggleStar = useToggleStar(selection, sort);
 
-  const list = useMemo(() => entries.data?.entries ?? [], [entries.data]);
+  /** The unread count for whatever the toolbar is describing. */
+  const unreadForSelection = useMemo(() => {
+    if (!tree.data) return 0;
+    switch (selection.kind) {
+      case "feed":
+        return (
+          tree.data.categories
+            .flatMap((category) => category.feeds)
+            .find((feed) => feed.id === selection.id)?.unread ?? 0
+        );
+      case "category":
+        return (
+          tree.data.categories.find((category) => category.id === selection.id)?.unread ?? 0
+        );
+      case "starred":
+        return 0;
+      default:
+        return tree.data.total_unread;
+    }
+  }, [tree.data, selection]);
+
+  const list = useMemo(() => {
+    const fetched = entries.data?.entries ?? [];
+    if (sort !== "magic") return fetched;
+    // Seeded on the selection so the order survives re-renders, and changes
+    // when you move to a different feed.
+    const seed = JSON.stringify(selection).length * 2654435761;
+    return shuffle(fetched, seed);
+  }, [entries.data, sort, selection]);
   const selectedEntry = list.find((entry) => entry.id === selectedEntryId);
 
   // Does the selected article already have a discussion? Owned here rather than
@@ -184,6 +215,88 @@ export function App() {
     [queryClient],
   );
 
+  const refreshTree = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["tree"] });
+    void queryClient.invalidateQueries({ queryKey: ["entries"] });
+  }, [queryClient]);
+
+  const markAllRead = useCallback(() => {
+    if (selection.kind === "shared") {
+      void api.markRiverReadAll().then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["shared"] });
+      });
+      return;
+    }
+
+    const scope =
+      selection.kind === "category"
+        ? { scope: "category" as const, id: selection.id }
+        : selection.kind === "feed"
+          ? { scope: "feed" as const, id: selection.id }
+          : { scope: "all" as const, id: undefined };
+
+    void api.markRead(scope.scope, scope.id).then(refreshTree);
+  }, [selection, queryClient, refreshTree]);
+
+  const refreshSelection = useCallback(() => {
+    const request =
+      selection.kind === "feed"
+        ? api.refreshFeed(selection.id)
+        : selection.kind === "category"
+          ? api.refreshCategory(selection.id)
+          : api.refreshAll();
+
+    // Miniflux fetches in the background, so the new entries land a moment
+    // after the call returns; refresh once now and once after a pause.
+    void request.then(() => {
+      refreshTree();
+      window.setTimeout(refreshTree, 4000);
+    });
+  }, [selection, refreshTree]);
+
+  const unsubscribe = useCallback(
+    (feedId: number, title: string) => {
+      if (!window.confirm(`Unsubscribe from "${title}"?`)) return;
+      void api.deleteFeed(feedId).then(() => {
+        setSelection({ kind: "unread" });
+        refreshTree();
+      });
+    },
+    [refreshTree],
+  );
+
+  const renameFolder = useCallback(
+    (categoryId: number, current: string) => {
+      const title = window.prompt("Rename folder", current);
+      if (!title?.trim()) return;
+      void api.updateCategory(categoryId, title.trim()).then(refreshTree);
+    },
+    [refreshTree],
+  );
+
+  const deleteFolder = useCallback(
+    (categoryId: number, title: string) => {
+      const target = (tree.data?.categories ?? [])
+        .filter((category) => category.id !== categoryId)
+        .sort((a, b) => a.id - b.id)[0];
+      if (!target) return;
+
+      const feedCount =
+        tree.data?.categories.find((category) => category.id === categoryId)?.feeds.length ?? 0;
+
+      const message = feedCount
+        ? `Delete the folder "${title}"? Its ${feedCount} feed${feedCount === 1 ? "" : "s"} will move to "${target.title}".`
+        : `Delete the empty folder "${title}"?`;
+      if (!window.confirm(message)) return;
+
+      void api.deleteCategory(categoryId).then(() => {
+        setSelection({ kind: "unread" });
+        refreshTree();
+      });
+    },
+    [tree.data, refreshTree],
+  );
+
   const openDiscussion = useCallback(
     (postId: string) => {
       openShared(postId);
@@ -210,7 +323,7 @@ export function App() {
       // the cache directly rather than firing a mutation is what keeps j/k
       // feeling instant without one request per keystroke.
       queryClient.setQueryData(
-        ["entries", selection],
+        ["entries", selection, sort],
         (old: { entries: Entry[]; total: number } | undefined) =>
           old
             ? {
@@ -225,7 +338,7 @@ export function App() {
       );
       queueRead(entry.id);
     },
-    [queueRead, queryClient, selection],
+    [queueRead, queryClient, selection, sort],
   );
 
   // Changing folders should land on nothing selected rather than a stale entry.
@@ -234,8 +347,17 @@ export function App() {
     if (previousSelection.current !== selection) {
       previousSelection.current = selection;
       setSelectedEntryId(undefined);
+      setSort(readSort(selection));
     }
   }, [selection]);
+
+  const changeSort = useCallback(
+    (order: SortOrder) => {
+      setSort(order);
+      writeSort(selection, order);
+    },
+    [selection],
+  );
 
   const move = useCallback(
     (delta: number) => {
@@ -365,18 +487,6 @@ export function App() {
         <button className="btn" onClick={() => void api.refreshAll()}>
           Refresh
         </button>
-        {selection.kind === "shared" && (
-          <button
-            className="btn"
-            onClick={() => {
-              void api.markRiverReadAll().then(() => {
-                void queryClient.invalidateQueries({ queryKey: ["shared"] });
-              });
-            }}
-          >
-            Mark all read
-          </button>
-        )}
         <button className="btn" onClick={() => setShowAdd(true)}>
           + Subscribe
         </button>
@@ -419,22 +529,38 @@ export function App() {
         }
       />
 
-      {selection.kind === "shared" ? (
-        <>
+      {/*
+        The middle column is the toolbar stacked on its list, so the toolbar
+        scrolls with neither — it stays pinned while the list moves under it.
+      */}
+      <div className="list-column">
+        <ListToolbar
+          selection={selection}
+          title={selectionTitle(selection)}
+          unread={
+            selection.kind === "shared"
+              ? (shared.data?.unread ?? 0)
+              : unreadForSelection
+          }
+          tree={tree.data}
+          sort={sort}
+          onSort={changeSort}
+          onMarkAllRead={markAllRead}
+          onRefresh={refreshSelection}
+          onMoveFeed={moveFeed}
+          onUnsubscribe={unsubscribe}
+          onRenameFolder={renameFolder}
+          onDeleteFolder={deleteFolder}
+        />
+
+        {selection.kind === "shared" ? (
           <SharedList
             items={sharedItems}
             selectedId={selectedSharedItem?.post_id}
             onSelect={(item) => openShared(item.post_id)}
             isLoading={shared.isLoading}
           />
-          <SharedArticle
-            item={selectedSharedItem}
-            tree={tree.data}
-            onSubscribe={(feedUrl, feedTitle) => setSubscribeTo({ feedUrl, feedTitle })}
-          />
-        </>
-      ) : (
-        <>
+        ) : (
           <EntryList
             entries={list}
             selectedId={selectedEntryId}
@@ -442,6 +568,17 @@ export function App() {
             isLoading={entries.isLoading}
             title={selectionTitle(selection)}
           />
+        )}
+      </div>
+
+      {selection.kind === "shared" ? (
+        <SharedArticle
+          item={selectedSharedItem}
+          tree={tree.data}
+          onSubscribe={(feedUrl, feedTitle) => setSubscribeTo({ feedUrl, feedTitle })}
+        />
+      ) : (
+        <>
           <EntryView
             entry={selectedEntry}
             onToggleStar={(id) => toggleStar.mutate(id)}
