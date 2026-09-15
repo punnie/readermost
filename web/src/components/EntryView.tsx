@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { Avatar } from "./Avatar";
+import { formatDate, formatDateTime } from "../format";
 import { Thread } from "./Thread";
 import type { Entry, ShareLookup } from "../types";
 
@@ -45,7 +46,6 @@ export function EntryView({
     );
   }
 
-  const published = new Date(entry.published_at);
   const shared = discussion?.shared ? discussion : undefined;
   const replies = shared?.reply_count ?? 0;
   const sharerName =
@@ -63,7 +63,7 @@ export function EntryView({
         <div className="article-meta">
           {entry.feed?.title}
           {entry.author && ` · ${entry.author}`}
-          {!Number.isNaN(published.getTime()) && ` · ${published.toLocaleString()}`}
+          {entry.published_at && ` · ${formatDateTime(entry.published_at)}`}
           {entry.reading_time > 0 && ` · ${entry.reading_time} min read`}
         </div>
 
@@ -119,7 +119,7 @@ export function EntryView({
                 <span>
                   Shared by <strong>{sharerName}</strong>
                   {shared.created_at
-                    ? ` on ${new Date(shared.created_at).toLocaleDateString()}`
+                    ? ` on ${formatDate(shared.created_at)}`
                     : null}
                 </span>
                 <a href={shared.permalink} target="_blank" rel="noreferrer noopener">

@@ -722,3 +722,33 @@ a {
   border-radius: 3px;
   box-sizing: border-box;
 }
+
+/* ---------- sidebar actions and drag-and-drop ---------- */
+
+.heading-action {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 2px;
+  text-transform: uppercase;
+}
+
+.heading-action:hover {
+  color: var(--accent);
+}
+
+/* The folder a dragged feed would land in. */
+.drop-target {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 4px;
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+
+/* Feeds are draggable, but the cursor stays a pointer: clicking one to read it
+   is the common action, and a grab cursor on every row advertises the rare one.
+   The browser shows its own drag cursor once a drag actually starts. */

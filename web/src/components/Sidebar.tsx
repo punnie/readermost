@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { FeedIcon } from "./FeedIcon";
 import type { Selection, Tree } from "../types";
 
@@ -8,6 +10,9 @@ interface Props {
   onSelect: (selection: Selection) => void;
   collapsed: Set<number>;
   onToggleCollapse: (categoryId: number) => void;
+  onNewFolder: () => void;
+  /** Move a feed into a folder, from a drag or a drop. */
+  onMoveFeed: (feedId: number, categoryId: number) => void;
 }
 
 /**
@@ -15,18 +20,43 @@ interface Props {
  * which is also what Google Reader's folders were.
  */
 export function Sidebar({
-  riverUnread,
   tree,
+  riverUnread,
   selection,
   onSelect,
   collapsed,
   onToggleCollapse,
+  onNewFolder,
+  onMoveFeed,
 }: Props) {
+  // The folder a feed is currently hovering over, so the drop target is obvious.
+  const [dropTarget, setDropTarget] = useState<number>();
+
   const isSelected = (candidate: Selection) => {
     if (candidate.kind !== selection.kind) return false;
     if ("id" in candidate && "id" in selection) return candidate.id === selection.id;
     return true;
   };
+
+  /** Shared by the folder row and its feed list, so both accept a drop. */
+  const dropHandlers = (categoryId: number) => ({
+    onDragOver: (event: React.DragEvent) => {
+      // Without preventDefault the browser refuses the drop entirely.
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      setDropTarget(categoryId);
+    },
+    onDragLeave: () => setDropTarget((current) => (current === categoryId ? undefined : current)),
+    onDrop: (event: React.DragEvent) => {
+      event.preventDefault();
+      setDropTarget(undefined);
+
+      const feedId = Number(event.dataTransfer.getData("application/x-readermost-feed"));
+      const from = Number(event.dataTransfer.getData("application/x-readermost-from"));
+      if (!feedId || from === categoryId) return;
+      onMoveFeed(feedId, categoryId);
+    },
+  });
 
   return (
     <nav className="pane sidebar">
@@ -75,13 +105,19 @@ export function Sidebar({
       </div>
 
       <div className="nav-section">
-        <div className="nav-heading">Subscriptions</div>
+        <div className="nav-heading">
+          <span>Subscriptions</span>
+          <button className="heading-action" onClick={onNewFolder} title="New folder">
+            + Folder
+          </button>
+        </div>
 
         {tree?.categories.map((category) => {
           const isCollapsed = collapsed.has(category.id);
+          const handlers = dropHandlers(category.id);
 
           return (
-            <div key={category.id}>
+            <div key={category.id} className={dropTarget === category.id ? "drop-target" : ""}>
               <button
                 className={`nav-item ${
                   isSelected({ kind: "category", id: category.id, title: category.title })
@@ -91,6 +127,7 @@ export function Sidebar({
                 onClick={() =>
                   onSelect({ kind: "category", id: category.id, title: category.title })
                 }
+                {...handlers}
               >
                 <span
                   className="twisty"
@@ -118,10 +155,28 @@ export function Sidebar({
                     } ${feed.unread > 0 ? "has-unread" : ""}`}
                     onClick={() => onSelect({ kind: "feed", id: feed.id, title: feed.title })}
                     title={feed.error || feed.title}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData(
+                        "application/x-readermost-feed",
+                        String(feed.id),
+                      );
+                      event.dataTransfer.setData(
+                        "application/x-readermost-from",
+                        String(category.id),
+                      );
+                    }}
+                    // A feed dropped onto a sibling means the folder it is in.
+                    {...handlers}
                   >
                     <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
                     <span className="label">{feed.title}</span>
-                    {feed.error && <span className="feed-error" title={feed.error}>!</span>}
+                    {feed.error && (
+                      <span className="feed-error" title={feed.error}>
+                        !
+                      </span>
+                    )}
                     {feed.unread > 0 && <span className="count">{feed.unread}</span>}
                   </button>
                 ))}

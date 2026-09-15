@@ -21,8 +21,9 @@ import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
 import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
+import { NewFolder } from "./components/NewFolder";
 import { useLiveUpdates } from "./useLiveUpdates";
-import type { Entry, Selection, SharedRiver } from "./types";
+import type { Entry, Selection, SharedRiver, Tree } from "./types";
 
 function SignIn() {
   return (
@@ -69,6 +70,7 @@ export function App() {
   // Set when subscribing from a shared item, to prefill the folder picker.
   const [subscribeTo, setSubscribeTo] = useState<{ feedUrl: string; feedTitle: string }>();
   const [showSettings, setShowSettings] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
   const [selectedSharedPost, setSelectedSharedPost] = useState<string>();
   // Set after sharing, to scroll the article's discussion into view and focus it.
@@ -132,6 +134,52 @@ export function App() {
           : old,
       );
       void api.markRiverRead(postID);
+    },
+    [queryClient],
+  );
+
+  const moveFeed = useCallback(
+    (feedId: number, categoryId: number) => {
+      queryClient.setQueryData<Tree>(["tree"], (old) => {
+        if (!old) return old;
+
+        let moved: Tree["categories"][number]["feeds"][number] | undefined;
+        const stripped = old.categories.map((category) => {
+          const found = category.feeds.find((feed) => feed.id === feedId);
+          if (!found) return category;
+          moved = found;
+          return {
+            ...category,
+            feeds: category.feeds.filter((feed) => feed.id !== feedId),
+            unread: category.unread - found.unread,
+          };
+        });
+        if (!moved) return old;
+
+        return {
+          ...old,
+          categories: stripped.map((category) =>
+            category.id === categoryId
+              ? {
+                  ...category,
+                  feeds: [...category.feeds, moved!].sort((a, b) =>
+                    a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
+                  ),
+                  unread: category.unread + moved!.unread,
+                }
+              : category,
+          ),
+        };
+      });
+
+      void api
+        .updateFeed(feedId, { category_id: categoryId })
+        .catch(() => {})
+        .finally(() => {
+          // Reconcile with the server whatever happened, so a rejected move
+          // snaps back rather than leaving the tree lying.
+          void queryClient.invalidateQueries({ queryKey: ["tree"] });
+        });
     },
     [queryClient],
   );
@@ -356,6 +404,8 @@ export function App() {
         riverUnread={shared.data?.unread ?? 0}
         onSelect={setSelection}
         collapsed={collapsed}
+        onNewFolder={() => setShowNewFolder(true)}
+        onMoveFeed={moveFeed}
         onToggleCollapse={(id) =>
           setCollapsed((current) => {
             const next = new Set(current);
@@ -442,6 +492,8 @@ export function App() {
       )}
 
       {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+
+      {showNewFolder && <NewFolder onClose={() => setShowNewFolder(false)} />}
 
       {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
     </div>

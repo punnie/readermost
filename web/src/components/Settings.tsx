@@ -37,6 +37,11 @@ export function Settings({ tree, onClose }: Props) {
     onSuccess: invalidate,
   });
 
+  const createCategory = useMutation({
+    mutationFn: (title: string) => api.createCategory(title),
+    onSuccess: invalidate,
+  });
+
   const renameCategory = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
       api.updateCategory(id, title),
@@ -61,7 +66,18 @@ export function Settings({ tree, onClose }: Props) {
       }}
     >
       <div className="dialog" role="dialog" aria-modal="true" style={{ width: "min(680px, 100%)" }}>
-        <h3>Subscriptions</h3>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+          <h3 style={{ flex: 1 }}>Subscriptions</h3>
+          <button
+            className="btn-link"
+            onClick={() => {
+              const title = window.prompt("New folder name");
+              if (title?.trim()) createCategory.mutate(title.trim());
+            }}
+          >
+            New folder
+          </button>
+        </div>
 
         <div style={{ maxHeight: "50vh", overflowY: "auto", marginBottom: "12px" }}>
           {tree?.categories.map((category) => (

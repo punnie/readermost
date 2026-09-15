@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../api";
 import { Avatar } from "./Avatar";
-import { Thread, timeAgo } from "./Thread";
+import { Thread } from "./Thread";
+import { formatDate, timeAgo } from "../format";
 import type { SharedItem, Tree } from "../types";
 
 interface Props {
@@ -82,7 +83,7 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
         <div className="article-meta">
           {feedTitle || (url ? hostOf(url) : null)}
           {data?.author && ` · ${data.author}`}
-          {data?.published_at && ` · ${new Date(data.published_at).toLocaleDateString()}`}
+          {data?.published_at && ` · ${formatDate(data.published_at)}`}
           {data?.reading_time ? ` · ${data.reading_time} min read` : null}
         </div>
 

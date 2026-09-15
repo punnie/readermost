@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import { formatListDate } from "../format";
+
 import type { Entry } from "../types";
 
 interface Props {
@@ -8,20 +10,6 @@ interface Props {
   onSelect: (entry: Entry) => void;
   isLoading: boolean;
   title: string;
-}
-
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const ageHours = (Date.now() - date.getTime()) / 36e5;
-  if (ageHours < 24) {
-    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  }
-  if (ageHours < 24 * 365) {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }
-  return date.toLocaleDateString(undefined, { year: "numeric", month: "short" });
 }
 
 export function EntryList({ entries, selectedId, onSelect, isLoading, title }: Props) {
@@ -59,7 +47,7 @@ export function EntryList({ entries, selectedId, onSelect, isLoading, title }: P
           </div>
           <div className="entry-meta">
             <span className="feed-name">{entry.feed?.title}</span>
-            <span>{formatDate(entry.published_at)}</span>
+            <span>{formatListDate(entry.published_at)}</span>
           </div>
         </button>
       ))}

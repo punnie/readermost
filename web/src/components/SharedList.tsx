@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { Avatar } from "./Avatar";
-import { timeAgo } from "./Thread";
+import { timeAgo } from "../format";
 import type { SharedItem } from "../types";
 
 interface Props {
