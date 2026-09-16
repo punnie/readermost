@@ -10,6 +10,8 @@ import {
   useReadBatcher,
   useSetStatus,
   useMoveFeed,
+  useRefreshFeeds,
+  unreadForSelection,
   useToggleStar,
   useTree,
 } from "./hooks";
@@ -151,6 +153,7 @@ export function App() {
   );
 
   const moveFeed = useMoveFeed();
+  const { refresh, refreshingWhat } = useRefreshFeeds();
   const online = useOnline();
   const isMobile = useIsMobile();
   useViewportHeight();
@@ -180,26 +183,10 @@ export function App() {
   const setStatus = useSetStatus(selection, sort, statusFilter, lengthFilter);
   const toggleStar = useToggleStar(selection, sort, statusFilter, lengthFilter);
 
-  /** The unread count for whatever the toolbar is describing. */
-  const unreadForSelection = useMemo(() => {
-    if (!tree.data) return 0;
-    switch (selection.kind) {
-      case "feed":
-        return (
-          tree.data.categories
-            .flatMap((category) => category.feeds)
-            .find((feed) => feed.id === selection.id)?.unread ?? 0
-        );
-      case "category":
-        return (
-          tree.data.categories.find((category) => category.id === selection.id)?.unread ?? 0
-        );
-      case "starred":
-        return 0;
-      default:
-        return tree.data.total_unread;
-    }
-  }, [tree.data, selection]);
+  const unreadForCurrent = useMemo(
+    () => unreadForSelection(tree.data, selection) ?? 0,
+    [tree.data, selection],
+  );
 
   const list = useMemo(() => {
     const all = entries.data?.entries ?? [];
@@ -286,20 +273,15 @@ export function App() {
   }, [selection, queryClient, refreshTree]);
 
   const refreshSelection = useCallback(() => {
-    const request =
-      selection.kind === "feed"
-        ? api.refreshFeed(selection.id)
-        : selection.kind === "category"
-          ? api.refreshCategory(selection.id)
-          : api.refreshAll();
+    void refresh(selection);
+  }, [refresh, selection]);
 
-    // Miniflux fetches in the background, so the new entries land a moment
-    // after the call returns; refresh once now and once after a pause.
-    void request.then(() => {
-      refreshTree();
-      window.setTimeout(refreshTree, 4000);
-    });
-  }, [selection, refreshTree]);
+  /** Is a refresh running for the thing this control acts on? */
+  const refreshingSelection =
+    refreshingWhat !== undefined && sameSelection(refreshingWhat, selection);
+  /** The whole-account Refresh only claims to be busy when it is the one running. */
+  const refreshingEverything =
+    refreshingWhat !== undefined && !("id" in refreshingWhat);
 
   const unsubscribe = useCallback(
     (feedId: number, title: string) => {
@@ -486,12 +468,7 @@ export function App() {
         ids: [selectedEntry.id],
         status: selectedEntry.status === "read" ? "unread" : "read",
       }),
-    r: () => {
-      void api.refreshAll().then(() => {
-        void queryClient.invalidateQueries({ queryKey: ["tree"] });
-        void queryClient.invalidateQueries({ queryKey: ["entries"] });
-      });
-    },
+    r: () => refreshSelection(),
     A: () => {
       if (selection.kind === "shared") {
         void api.markRiverReadAll().then(() => {
@@ -624,13 +601,13 @@ export function App() {
           </MenuItem>
           {selection.kind !== "shared" && (
             <MenuItem
-              disabled={!online}
+              disabled={!online || refreshingSelection}
               onClick={() => {
                 refreshSelection();
                 close();
               }}
             >
-              Refresh
+              {refreshingSelection ? "Refreshing…" : "Refresh"}
             </MenuItem>
           )}
           <MenuSeparator />
@@ -835,8 +812,12 @@ export function App() {
 
       <header className="topbar">
         <h1>Readermost</h1>
-        <button className="btn" onClick={() => void api.refreshAll()}>
-          Refresh
+        <button
+          className="btn"
+          onClick={() => void refresh({ kind: "all" })}
+          disabled={refreshingEverything || !online}
+        >
+          {refreshingEverything ? "Refreshing…" : "Refresh"}
         </button>
         <button className="btn" onClick={() => setShowAdd(true)}>
           + Subscribe
@@ -900,7 +881,7 @@ export function App() {
           unread={
             selection.kind === "shared"
               ? (shared.data?.unread ?? 0)
-              : unreadForSelection
+              : unreadForCurrent
           }
           tree={tree.data}
           sort={sort}
@@ -910,6 +891,7 @@ export function App() {
           lengthFilter={lengthFilter}
           onLengthFilter={changeLengthFilter}
           online={online}
+      isRefreshing={refreshingSelection}
           filteredOut={(entries.data?.entries.length ?? 0) - list.length}
           onMarkAllRead={markAllRead}
           onRefresh={refreshSelection}

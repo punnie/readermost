@@ -23,6 +23,8 @@ interface Props {
   filteredOut: number;
   /** Server-bound actions are disabled with no network. */
   online: boolean;
+  /** Miniflux fetches in the background; say so while it does. */
+  isRefreshing: boolean;
   onMarkAllRead: () => void;
   onRefresh: () => void;
   onMoveFeed: (feedId: number, categoryId: number) => void;
@@ -49,6 +51,7 @@ export function ListToolbar({
   onLengthFilter,
   filteredOut,
   online,
+  isRefreshing,
   onMarkAllRead,
   onRefresh,
   onMoveFeed,
@@ -103,10 +106,18 @@ export function ListToolbar({
         <button
           className="btn"
           onClick={onRefresh}
-          disabled={!online}
-          title={online ? "Fetch new articles now" : "Needs a connection"}
+          disabled={!online || isRefreshing}
+          title={
+            isRefreshing
+              ? "Fetching — this can take a while for many feeds"
+              : online
+                ? "Fetch new articles now"
+                : "Needs a connection"
+          }
         >
-          ↻
+          <span className={isRefreshing ? "spinning" : ""} aria-hidden="true">
+            ↻
+          </span>
         </button>
       )}
 

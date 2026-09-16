@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useMutation,
   useQuery,
@@ -269,4 +269,98 @@ export function useMoveFeed() {
     },
     [queryClient],
   );
+}
+
+/**
+ * The unread count for whatever a selection points at.
+ *
+ * Shared by the toolbar and the refresh poll so both mean the same thing by
+ * "did anything arrive".
+ */
+export function unreadForSelection(tree: Tree | undefined, selection: Selection): number | undefined {
+  if (!tree) return undefined;
+
+  switch (selection.kind) {
+    case "feed":
+      return tree.categories
+        .flatMap((category) => category.feeds)
+        .find((feed) => feed.id === selection.id)?.unread;
+    case "category":
+      return tree.categories.find((category) => category.id === selection.id)?.unread;
+    case "starred":
+      return 0;
+    default:
+      return tree.total_unread;
+  }
+}
+
+/** Delays between checks after asking Miniflux to poll, in milliseconds. */
+const REFRESH_CHECKS = [1500, 2500, 4000, 6000, 8000, 8000];
+
+/**
+ * Ask Miniflux to fetch, then keep looking until the results arrive.
+ *
+ * Miniflux answers a refresh request immediately and does the fetching in a
+ * background process, so there is nothing useful to read when the call
+ * returns — for seventy feeds the work can run for the better part of a
+ * minute. Invalidating once, or once after a fixed pause, usually asks before
+ * anything has changed and then never asks again, which is why refreshing
+ * appeared to do nothing.
+ *
+ * So this polls on a widening schedule and stops as soon as the unread total
+ * moves, or after about thirty seconds.
+ */
+export function useRefreshFeeds() {
+  const queryClient = useQueryClient();
+  /** What is being refreshed, so only that control shows progress. */
+  const [refreshingWhat, setRefreshingWhat] = useState<Selection | undefined>();
+  const abandoned = useRef(false);
+
+  useEffect(
+    () => () => {
+      abandoned.current = true;
+    },
+    [],
+  );
+
+  const refresh = useCallback(
+    async (selection: Selection) => {
+      setRefreshingWhat(selection);
+
+      const before = unreadForSelection(queryClient.getQueryData<Tree>(["tree"]), selection);
+
+      try {
+        if (selection.kind === "feed") {
+          await api.refreshFeed(selection.id);
+        } else if (selection.kind === "category") {
+          await api.refreshCategory(selection.id);
+        } else {
+          await api.refreshAll();
+        }
+
+        for (const delay of REFRESH_CHECKS) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (abandoned.current) return;
+
+          await queryClient.invalidateQueries({ queryKey: ["tree"] });
+          const now = unreadForSelection(queryClient.getQueryData<Tree>(["tree"]), selection);
+
+          // Something arrived in the thing that was refreshed.
+          if (before !== undefined && now !== undefined && now !== before) break;
+        }
+      } catch {
+        // A failed refresh is not worth an error dialog; the reader can retry.
+      } finally {
+        if (!abandoned.current) {
+          // Whatever happened, leave the list and the counts current.
+          await queryClient.invalidateQueries({ queryKey: ["entries"] });
+          await queryClient.invalidateQueries({ queryKey: ["tree"] });
+          setRefreshingWhat(undefined);
+        }
+      }
+    },
+    [queryClient],
+  );
+
+  return { refresh, refreshingWhat };
 }

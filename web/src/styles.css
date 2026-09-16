@@ -1406,3 +1406,24 @@ a {
     padding: 16px 16px 48px;
   }
 }
+
+/* A refresh in progress. Miniflux fetches in the background and can take the
+   better part of a minute across many feeds, so the control has to say so.
+   Only the glyph turns: rotating the whole button spins its border and
+   background with it, which looks broken rather than busy. */
+.spinning {
+  display: inline-block;
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+    opacity: 0.6;
+  }
+}
