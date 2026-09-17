@@ -364,3 +364,20 @@ export function useRefreshFeeds() {
 
   return { refresh, refreshingWhat };
 }
+
+/**
+ * A value that settles before it is used.
+ *
+ * Search runs on every keystroke; without this each one becomes a Miniflux
+ * query over four thousand articles.
+ */
+export function useDebounced<T>(value: T, delay: number): T {
+  const [settled, setSettled] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return settled;
+}

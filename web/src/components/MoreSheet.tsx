@@ -5,7 +5,6 @@ interface Props {
   onClose: () => void;
   onSubscribe: () => void;
   onSubscriptions: () => void;
-  onShortcuts: () => void;
   onSignOut: () => void;
 }
 
@@ -15,7 +14,6 @@ export function MoreSheet({
   onClose,
   onSubscribe,
   onSubscriptions,
-  onShortcuts,
   onSignOut,
 }: Props) {
   useEffect(() => {
@@ -52,7 +50,6 @@ export function MoreSheet({
         {item("Subscribe to a feed", onSubscribe)}
         {item("Subscriptions", onSubscriptions)}
         {item("Export OPML", () => window.open("/api/export", "_blank"))}
-        {item("Keyboard shortcuts", onShortcuts)}
         {item("Sign out", onSignOut, true)}
       </div>
     </div>

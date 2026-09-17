@@ -15,7 +15,7 @@ buildGoModule {
     ];
   };
 
-  vendorHash = "sha256-+4TxBGsqEUy+pzkCIif2L/FlDLF9uSR97VOJ4DCn9I4=";
+  vendorHash = "sha256-UfEkRaUT38HIkjW4xwvQZRG/piW9bZMvH/todXfVhQI=";
 
   # modernc.org/sqlite is pure Go: keep the output a standalone binary.
   env.CGO_ENABLED = 0;

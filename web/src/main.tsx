@@ -42,6 +42,7 @@ createRoot(document.getElementById("root")!).render(
               (root === "me" ||
                 root === "tree" ||
                 root === "entries" ||
+                root === "entry" ||
                 root === "shared" ||
                 root === "shared-article" ||
                 root === "thread")

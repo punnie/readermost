@@ -204,9 +204,32 @@ feeds and articles per user, so `/feed/12` is a durable bookmark for *you* on
 any of your devices, but opens a different feed for a friend. Mattermost post
 IDs are global, so a link to a shared item resolves the same for everybody.
 
+## Search
+
+One box over three sources, at `/search?q=…`, reached from the top bar (or `/`)
+on a desktop and the ⌕ in the list bar on a phone. A chip narrows the search to
+the feed or folder you came from.
+
+- **Feeds** are matched in the browser against the tree already loaded, so they
+  appear as you type.
+- **Articles** go to Miniflux, which searches titles and bodies and ANDs your
+  terms.
+- **The shared river** is searched server-side against the cached channel
+  snapshot, which reaches back as far as the river itself.
+
+> **Article search is accent-sensitive, and the other two are not.** Miniflux
+> indexes with a Postgres text-search configuration that keeps accents, so
+> `inflacao` finds nothing while `inflação` finds eight. Feed names and shared
+> items are matched by Readermost, which folds accents on both sides, so
+> `inflacao` finds them either way. The search screen says so when an article
+> search comes up empty on an unaccented query.
+>
+> Fixing it properly means adding `unaccent` to Miniflux's own search
+> configuration — a change on that side, not this one.
+
 ## Keyboard
 
-`j`/`k` next/previous · `o` open · `m` toggle read · `s` star · `S` share ·
+`/` search · `j`/`k` next/previous · `o` open · `m` toggle read · `s` star · `S` share ·
 `v` open original · `r` refresh · `A` mark all read · `g u`/`g a` jump · `?` help
 
 ## Notes

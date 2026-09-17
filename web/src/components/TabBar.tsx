@@ -16,8 +16,8 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { kind: "unread", label: "Unread", glyph: "●" },
   { kind: "all", label: "All", glyph: "≣" },
+  { kind: "unread", label: "Unread", glyph: "●" },
   { kind: "starred", label: "Starred", glyph: "★" },
   { kind: "shared", label: "Shared", glyph: "◆" },
 ];

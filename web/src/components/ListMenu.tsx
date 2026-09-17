@@ -22,6 +22,8 @@ export interface ListMenuProps {
   onUnsubscribe: (feedId: number, title: string) => void;
   onRenameFolder: (categoryId: number, title: string) => void;
   onDeleteFolder: (categoryId: number, title: string) => void;
+  /** Search within this feed or folder, as opposed to the global search. */
+  onSearchHere: (scope: Selection) => void;
   /** Extra items the phone's bar needs, since it has no room for buttons. */
   extra?: (close: () => void) => React.ReactNode;
 }
@@ -48,6 +50,7 @@ export function ListMenu({
   onUnsubscribe,
   onRenameFolder,
   onDeleteFolder,
+  onSearchHere,
   extra,
 }: ListMenuProps) {
   const isFeed = selection.kind === "feed";
@@ -121,6 +124,20 @@ export function ListMenu({
               {SORT_LABELS[order]}
             </MenuItem>
           ))}
+
+          {(isFeed || isFolder) && (
+            <>
+              <MenuSeparator />
+              <MenuItem
+                onClick={() => {
+                  onSearchHere(selection);
+                  close();
+                }}
+              >
+                Search here…
+              </MenuItem>
+            </>
+          )}
 
           {isFeed && otherFolders.length > 0 && (
             <>

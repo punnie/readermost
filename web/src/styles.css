@@ -1,755 +1,760 @@
 /* Readermost — a deliberately dense, Google Reader-ish three-pane layout. */
 
 :root {
-  --bg: #ffffff;
-  --bg-sunken: #f5f5f3;
-  --bg-raised: #ffffff;
-  --bg-hover: #ececea;
-  --bg-selected: #dce9f7;
-  --border: #d9d9d6;
-  --border-strong: #bcbcb8;
-  --text: #1b1b19;
-  --text-muted: #6a6a66;
-  --text-faint: #96968f;
-  --accent: #1a5fb4;
-  --accent-text: #ffffff;
-  --unread: #1b1b19;
-  --star: #e5a50a;
-  --danger: #c01c28;
+    --bg: #ffffff;
+    --bg-sunken: #f5f5f3;
+    --bg-raised: #ffffff;
+    --bg-hover: #ececea;
+    --bg-selected: #dce9f7;
+    --border: #d9d9d6;
+    --border-strong: #bcbcb8;
+    --text: #1b1b19;
+    --text-muted: #6a6a66;
+    --text-faint: #96968f;
+    --accent: #1a5fb4;
+    --accent-text: #ffffff;
+    --unread: #1b1b19;
+    --star: #e5a50a;
+    --danger: #c01c28;
 
-  --sidebar-width: 250px;
-  --list-width: 380px;
+    --sidebar-width: 250px;
+    --list-width: 380px;
 
-  color-scheme: light dark;
+    color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #1c1c1a;
-    --bg-sunken: #141413;
-    --bg-raised: #242422;
-    --bg-hover: #2e2e2b;
-    --bg-selected: #1e3a5f;
-    --border: #35352f;
-    --border-strong: #4a4a43;
-    --text: #e8e8e3;
-    --text-muted: #a3a39c;
-    --text-faint: #75756e;
-    --accent: #78aeed;
-    --accent-text: #11223a;
-    --unread: #f5f5f0;
-    --star: #f6d32d;
-    --danger: #ff7b7b;
-  }
+    :root:not([data-theme="light"]) {
+        --bg: #1c1c1a;
+        --bg-sunken: #141413;
+        --bg-raised: #242422;
+        --bg-hover: #2e2e2b;
+        --bg-selected: #1e3a5f;
+        --border: #35352f;
+        --border-strong: #4a4a43;
+        --text: #e8e8e3;
+        --text-muted: #a3a39c;
+        --text-faint: #75756e;
+        --accent: #78aeed;
+        --accent-text: #11223a;
+        --unread: #f5f5f0;
+        --star: #f6d32d;
+        --danger: #ff7b7b;
+    }
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 html,
 body,
 #root {
-  height: 100%;
-  margin: 0;
-  /* iOS rubber-bands the document by default, which makes the whole app bounce
+    height: 100%;
+    margin: 0;
+    /* iOS rubber-bands the document by default, which makes the whole app bounce
      under a thumb. Nothing here ever scrolls the document itself. */
-  overscroll-behavior: none;
+    overscroll-behavior: none;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font:
-    13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+    background: var(--bg);
+    color: var(--text);
+    font:
+        13px/1.5 -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
 
 button {
-  font: inherit;
-  color: inherit;
+    font: inherit;
+    color: inherit;
 }
 
 a {
-  color: var(--accent);
+    color: var(--accent);
 }
 
 /* ---------- layout ---------- */
 
 .app {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) var(--list-width) 1fr;
-  grid-template-rows: auto 1fr;
-  height: 100%;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) var(--list-width) 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100%;
 }
 
 .topbar {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px;
-  height: 44px;
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--border);
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    height: 44px;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border);
 }
 
 .topbar h1 {
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.01em;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
 }
 
 .topbar .spacer {
-  flex: 1;
+    flex: 1;
 }
 
 .topbar .who {
-  color: var(--text-muted);
-  font-size: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
 }
 
 .pane {
-  overflow-y: auto;
-  min-height: 0;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .sidebar {
-  background: var(--bg-sunken);
-  border-right: 1px solid var(--border);
-  padding: 8px 0 24px;
+    background: var(--bg-sunken);
+    border-right: 1px solid var(--border);
+    padding: 8px 0 24px;
 }
 
 .entry-list {
-  border-right: 1px solid var(--border);
-  background: var(--bg);
+    border-right: 1px solid var(--border);
+    background: var(--bg);
 }
 
 .reader {
-  background: var(--bg);
-  padding: 0;
+    background: var(--bg);
+    padding: 0;
 }
 
 /* ---------- buttons ---------- */
 
 .btn {
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  padding: 3px 9px;
-  cursor: pointer;
-  font-size: 12px;
+    /* Several of these are anchors — "Open original", "Export OPML", the sign-in
+     link. Without an explicit box they stay inline, sitting on a different
+     baseline from their sibling buttons and inheriting the link colour and
+     underline. inline-flex makes every .btn the same shape whatever element
+     it is. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 3px 9px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: middle;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .btn:disabled {
-  opacity: 0.5;
-  cursor: default;
+    opacity: 0.5;
+    cursor: default;
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
 }
 
 .btn-link {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 0;
-  font-size: 12px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 0;
+    font-size: 12px;
 }
 
 /* ---------- sidebar ---------- */
 
 .nav-section {
-  margin-bottom: 14px;
+    margin-bottom: 14px;
 }
 
 .nav-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
 }
 
 .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  padding: 4px 12px;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 4px 12px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
 }
 
 .nav-item:hover {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .nav-item.selected {
-  background: var(--bg-selected);
-  font-weight: 600;
+    background: var(--bg-selected);
+    font-weight: 600;
 }
 
 .nav-item.feed {
-  padding-left: 30px;
-  font-size: 12.5px;
+    padding-left: 30px;
+    font-size: 12.5px;
 }
 
 .nav-item .label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .nav-item .count {
-  color: var(--text-faint);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
 .nav-item.has-unread .label,
 .nav-item.has-unread .count {
-  font-weight: 700;
-  color: var(--unread);
+    font-weight: 700;
+    color: var(--unread);
 }
 
 .nav-item .twisty {
-  width: 12px;
-  color: var(--text-faint);
-  font-size: 9px;
-  flex-shrink: 0;
+    width: 12px;
+    color: var(--text-faint);
+    font-size: 9px;
+    flex-shrink: 0;
 }
 
 .favicon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  border-radius: 2px;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border-radius: 2px;
 }
 
 .feed-error {
-  color: var(--danger);
-  flex-shrink: 0;
+    color: var(--danger);
+    flex-shrink: 0;
 }
 
 /* ---------- entry list ---------- */
 
 .entry-row {
-  display: block;
-  width: 100%;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  background: none;
-  text-align: left;
-  padding: 8px 12px;
-  cursor: pointer;
+    display: block;
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    text-align: left;
+    padding: 8px 12px;
+    cursor: pointer;
 }
 
 .entry-row:hover {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .entry-row.selected {
-  background: var(--bg-selected);
+    background: var(--bg-selected);
 }
 
 .entry-row.read .entry-title {
-  font-weight: 400;
-  color: var(--text-muted);
+    font-weight: 400;
+    color: var(--text-muted);
 }
 
 .entry-title {
-  font-weight: 700;
-  color: var(--unread);
-  margin-bottom: 2px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+    font-weight: 700;
+    color: var(--unread);
+    margin-bottom: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .entry-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-faint);
 }
 
 .entry-meta .feed-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
 }
 
 .star {
-  color: var(--star);
+    color: var(--star);
 }
 
 /* ---------- reader pane ---------- */
 
 .article {
-  padding: 20px 28px 64px;
-  max-width: 760px;
+    padding: 20px 28px 64px;
+    max-width: 760px;
 }
 
 .article h2 {
-  font-size: 21px;
-  line-height: 1.25;
-  margin: 0 0 6px;
+    font-size: 21px;
+    line-height: 1.25;
+    margin: 0 0 6px;
 }
 
 .article h2 a {
-  color: var(--text);
-  text-decoration: none;
+    color: var(--text);
+    text-decoration: none;
 }
 
 .article h2 a:hover {
-  text-decoration: underline;
+    text-decoration: underline;
 }
 
 .article-meta {
-  color: var(--text-muted);
-  font-size: 12px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
 }
 
 .article-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
 }
 
 .article-body {
-  font-size: 14px;
-  line-height: 1.65;
-  overflow-wrap: break-word;
+    font-size: 14px;
+    line-height: 1.65;
+    overflow-wrap: break-word;
 }
 
 .article-body img,
 .article-body video,
 .article-body iframe {
-  max-width: 100%;
-  height: auto;
+    max-width: 100%;
+    height: auto;
 }
 
 .article-body pre {
-  overflow-x: auto;
-  background: var(--bg-sunken);
-  padding: 10px;
-  border-radius: 4px;
+    overflow-x: auto;
+    background: var(--bg-sunken);
+    padding: 10px;
+    border-radius: 4px;
 }
 
 .article-body blockquote {
-  margin-left: 0;
-  padding-left: 14px;
-  border-left: 3px solid var(--border-strong);
-  color: var(--text-muted);
+    margin-left: 0;
+    padding-left: 14px;
+    border-left: 3px solid var(--border-strong);
+    color: var(--text-muted);
 }
 
 /* ---------- shared river ---------- */
 
-
-
-
-
-
-
-
-
 .shared-note {
-  margin: 0 0 10px;
-  white-space: pre-wrap;
-  font-size: 13.5px;
-  line-height: 1.55;
+    margin: 0 0 10px;
+    white-space: pre-wrap;
+    font-size: 13.5px;
+    line-height: 1.55;
 }
 
 /* The article preview: a real card, not a line of text. */
 .shared-card {
-  display: block;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 10px 12px;
-  background: var(--bg-sunken);
-  text-decoration: none;
-  color: inherit;
+    display: block;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: var(--bg-sunken);
+    text-decoration: none;
+    color: inherit;
 }
 
-
 .shared-card .title {
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 1.35;
-  margin-bottom: 3px;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 3px;
 }
 
 .shared-card .source {
-  font-size: 11px;
-  color: var(--text-faint);
+    font-size: 11px;
+    color: var(--text-faint);
 }
 
-
 .thread {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
 }
 
 .thread-more {
-  display: block;
-  margin-bottom: 8px;
+    display: block;
+    margin-bottom: 8px;
 }
 
-
-
-
-
 .comment-form {
-  display: flex;
-  gap: 6px;
-  margin-top: 10px;
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
 }
 
 .comment-form input {
-  flex: 1;
-  padding: 6px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
+    flex: 1;
+    padding: 6px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
 }
 
 .comment-form input:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: -1px;
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: -1px;
 }
-
 
 /* ---------- dialogs, states ---------- */
 
 .backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 45%);
-  display: grid;
-  place-items: center;
-  z-index: 50;
-  padding: 16px;
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 45%);
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    padding: 16px;
 }
 
 .dialog {
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 18px;
-  width: min(520px, 100%);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 18px;
+    width: min(520px, 100%);
+    box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
 }
 
 .dialog h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
+    margin: 0 0 12px;
+    font-size: 15px;
 }
 
 .dialog textarea,
 .dialog input[type="text"] {
-  width: 100%;
-  padding: 7px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  resize: vertical;
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    resize: vertical;
 }
 
 .dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
 }
 
 .empty,
 .loading {
-  padding: 36px 20px;
-  text-align: center;
-  color: var(--text-faint);
+    padding: 36px 20px;
+    text-align: center;
+    color: var(--text-faint);
 }
 
 .error-banner {
-  background: var(--danger);
-  color: #fff;
-  padding: 7px 12px;
-  font-size: 12px;
+    background: var(--danger);
+    color: #fff;
+    padding: 7px 12px;
+    font-size: 12px;
 }
 
 .centered {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 24px;
 }
 
 .card {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 28px;
-  max-width: 460px;
-  text-align: center;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    max-width: 460px;
+    text-align: center;
 }
 
 .shortcuts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 14px;
-  text-align: left;
-  font-size: 12.5px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    text-align: left;
+    font-size: 12.5px;
 }
 
 .shortcuts kbd {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border-strong);
-  border-bottom-width: 2px;
-  border-radius: 3px;
-  padding: 1px 5px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  justify-self: start;
+    background: var(--bg-sunken);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    justify-self: start;
 }
 
 /* ---------- avatars ---------- */
 
 .avatar {
-  position: relative;
-  display: inline-block;
-  flex-shrink: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--bg-hover);
-  vertical-align: middle;
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--bg-hover);
+    vertical-align: middle;
 }
 
 /* Sits underneath the image, so a failed load degrades to an initial
    rather than a broken-image icon. */
 .avatar-initial {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-faint);
-  user-select: none;
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-faint);
+    user-select: none;
 }
 
 .avatar img {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* ---------- thread messages ---------- */
 
 .thread-message {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .thread-body {
-  min-width: 0;
-  flex: 1;
+    min-width: 0;
+    flex: 1;
 }
 
 .thread-message .meta {
-  display: flex;
-  gap: 7px;
-  align-items: baseline;
-  font-size: 11px;
-  color: var(--text-faint);
-  margin-bottom: 1px;
+    display: flex;
+    gap: 7px;
+    align-items: baseline;
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-bottom: 1px;
 }
 
 .thread-message .meta strong {
-  color: var(--text);
-  font-size: 12px;
+    color: var(--text);
+    font-size: 12px;
 }
 
 .thread-message .body {
-  white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.5;
-  overflow-wrap: break-word;
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
 }
 
 /* ---------- discussion under an article ---------- */
 
 .article-discussion {
-  margin-top: 32px;
-  padding-top: 18px;
-  border-top: 2px solid var(--border);
+    margin-top: 32px;
+    padding-top: 18px;
+    border-top: 2px solid var(--border);
 }
 
 .article-discussion h3 {
-  margin: 0 0 12px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
 }
 
 .discussion-origin {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-bottom: 10px;
 }
 
 .discussion-origin a {
-  margin-left: auto;
-  font-size: 11px;
-  text-decoration: none;
-  opacity: 0.8;
+    margin-left: auto;
+    font-size: 11px;
+    text-decoration: none;
+    opacity: 0.8;
 }
 
 .discussion-origin a:hover {
-  opacity: 1;
-  text-decoration: underline;
+    opacity: 1;
+    text-decoration: underline;
 }
 
 .article-discussion .thread {
-  margin-top: 0;
-  border-top: none;
-  padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
 }
 
 .discussion-empty {
-  color: var(--text-muted);
-  font-size: 13px;
+    color: var(--text-muted);
+    font-size: 13px;
 }
 
 .discussion-empty p {
-  margin: 0 0 10px;
+    margin: 0 0 10px;
 }
 
 /* ---------- shared view ---------- */
 
 .shared-row .entry-title {
-  /* A shared link is always worth reading; nothing here is "already read". */
-  font-weight: 700;
-  color: var(--unread);
+    /* A shared link is always worth reading; nothing here is "already read". */
+    font-weight: 700;
+    color: var(--unread);
 }
 
 .reply-badge {
-  flex-shrink: 0;
-  background: var(--accent);
-  color: var(--accent-text);
-  border-radius: 8px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 15px;
-  min-width: 15px;
-  text-align: center;
+    flex-shrink: 0;
+    background: var(--accent);
+    color: var(--accent-text);
+    border-radius: 8px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 15px;
+    min-width: 15px;
+    text-align: center;
 }
 
 /* Who shared it, above the article in the reading pane. */
 .shared-by {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  background: var(--bg-sunken);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-sunken);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
 }
 
 .shared-by a {
-  margin-left: auto;
-  font-size: 11px;
-  text-decoration: none;
-  opacity: 0.8;
+    margin-left: auto;
+    font-size: 11px;
+    text-decoration: none;
+    opacity: 0.8;
 }
 
 .shared-by a:hover {
-  opacity: 1;
-  text-decoration: underline;
+    opacity: 1;
+    text-decoration: underline;
 }
 
 .not-subscribed {
-  color: var(--text-faint);
-  font-size: 12.5px;
-  font-style: italic;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  margin-top: 14px;
+    color: var(--text-faint);
+    font-size: 12.5px;
+    font-style: italic;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 14px;
 }
 
 /* A feed with no favicon, or one whose icon failed to load. */
 .favicon-blank {
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  box-sizing: border-box;
+    background: var(--bg-hover);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-sizing: border-box;
 }
 
 /* ---------- sidebar actions and drag-and-drop ---------- */
 
 .heading-action {
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0 2px;
-  text-transform: uppercase;
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0 2px;
+    text-transform: uppercase;
 }
 
 .heading-action:hover {
-  color: var(--accent);
+    color: var(--accent);
 }
 
 /* The folder a dragged feed would land in. */
 .drop-target {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-radius: 4px;
-  outline: 1px dashed var(--accent);
-  outline-offset: -1px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 4px;
+    outline: 1px dashed var(--accent);
+    outline-offset: -1px;
 }
 
 /* Feeds are draggable, but the cursor stays a pointer: clicking one to read it
@@ -760,306 +765,306 @@ a {
 
 /* The middle column: a fixed toolbar over a scrolling list. */
 .list-column {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--border);
 }
 
 .list-column .pane {
-  border-right: none;
-  flex: 1;
+    border-right: none;
+    flex: 1;
 }
 
 .list-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .list-title {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
 }
 
 .list-title .name {
-  font-weight: 700;
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    font-weight: 700;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .list-title .count {
-  color: var(--text-faint);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 
 /* ---------- dropdown menu ---------- */
 
 .menu {
-  position: relative;
-  flex-shrink: 0;
+    position: relative;
+    flex-shrink: 0;
 }
 
 .menu-items {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 40;
-  min-width: 190px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding: 4px 0;
-  background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 40;
+    min-width: 190px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 4px 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
 }
 
 .menu-heading {
-  padding: 5px 10px 3px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+    padding: 5px 10px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
 }
 
 .menu-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 5px 10px;
-  border: none;
-  background: none;
-  text-align: left;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
 }
 
 .menu-item:hover:not(:disabled) {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .menu-item:disabled {
-  opacity: 0.45;
-  cursor: default;
+    opacity: 0.45;
+    cursor: default;
 }
 
 .menu-item.danger {
-  color: var(--danger);
+    color: var(--danger);
 }
 
 .menu-check {
-  width: 10px;
-  flex-shrink: 0;
-  color: var(--accent);
-  font-size: 11px;
+    width: 10px;
+    flex-shrink: 0;
+    color: var(--accent);
+    font-size: 11px;
 }
 
 .menu-separator {
-  height: 1px;
-  margin: 4px 0;
-  background: var(--border);
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
 }
 
 /* An active filter, shown in the toolbar and clickable to clear. */
 .filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 2px 8px;
-  font-size: 11px;
-  cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
 }
 
 .filter-chip:hover {
-  background: color-mix(in srgb, var(--accent) 26%, transparent);
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .filter-chip .clear {
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
 }
 
 /* Shown across the top when the browser reports no network. */
 .offline-banner {
-  grid-column: 1 / -1;
-  background: var(--star);
-  color: #1b1b19;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
+    grid-column: 1 / -1;
+    background: var(--star);
+    color: #1b1b19;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
 }
 
 /* ---------- subscriptions dialog ---------- */
 
 .dialog.subscriptions {
-  width: min(640px, 100%);
+    width: min(640px, 100%);
 }
 
 .subs-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 2px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 2px;
 }
 
 .subs-header h3 {
-  margin: 0;
-  flex: 1;
+    margin: 0;
+    flex: 1;
 }
 
 .subs-count {
-  color: var(--text-faint);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
 .subs-hint {
-  margin: 0 0 12px;
-  font-size: 11.5px;
-  color: var(--text-faint);
+    margin: 0 0 12px;
+    font-size: 11.5px;
+    color: var(--text-faint);
 }
 
 .subs-list {
-  max-height: 52vh;
-  overflow-y: auto;
-  margin-bottom: 16px;
+    max-height: 52vh;
+    overflow-y: auto;
+    margin-bottom: 16px;
 }
 
 .subs-folder {
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 2px 4px 6px;
-  margin-bottom: 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 2px 4px 6px;
+    margin-bottom: 8px;
 }
 
 /* The folder a dragged feed would land in. */
 .subs-folder.drop-target {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .subs-folder-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 6px;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 6px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
 }
 
 .subs-folder-head .name {
-  font-weight: 700;
-  color: var(--text);
-  font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    font-size: 13px;
 }
 
 .subs-folder-head .subs-count {
-  flex: 1;
+    flex: 1;
 }
 
 .subs-empty {
-  padding: 6px 6px 6px 30px;
-  font-size: 11.5px;
-  font-style: italic;
-  color: var(--text-faint);
+    padding: 6px 6px 6px 30px;
+    font-size: 11.5px;
+    font-style: italic;
+    color: var(--text-faint);
 }
 
 .subs-feed {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 6px 4px 8px;
-  border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 6px 4px 8px;
+    border-radius: 4px;
 }
 
 .subs-feed:hover {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .subs-feed .name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12.5px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
 }
 
 /* The one place a grab cursor belongs: a handle whose only job is dragging. */
 .subs-feed .grip {
-  display: inline-flex;
-  color: var(--text-faint);
-  cursor: grab;
+    display: inline-flex;
+    color: var(--text-faint);
+    cursor: grab;
 }
 
 .subs-feed:active .grip {
-  cursor: grabbing;
+    cursor: grabbing;
 }
 
 /* Icon buttons stay quiet until the row is hovered or they are focused, so a
    long list reads as names rather than a wall of controls. */
 .icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    opacity: 0;
 }
 
 .subs-feed:hover .icon-btn,
 .subs-folder-head:hover .icon-btn,
 .icon-btn:focus-visible {
-  opacity: 1;
+    opacity: 1;
 }
 
 .icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
+    background: var(--bg-hover);
+    color: var(--text);
 }
 
 .icon-btn.danger:hover {
-  background: color-mix(in srgb, var(--danger) 16%, transparent);
-  color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
+    color: var(--danger);
 }
 
 .subs-section {
-  margin: 0 0 8px;
+    margin: 0 0 8px;
 }
 
 .subs-status {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--text-muted);
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 /* ============================================================
@@ -1068,343 +1073,345 @@ a {
    ============================================================ */
 
 .mobile {
-  /* Fixed to the viewport rather than sized by it. This is what stops the
+    /* Fixed to the viewport rather than sized by it. This is what stops the
      whole app sliding and bouncing when a thumb drags: there is no document
      scroll left to rubber-band.
      Height comes from visualViewport, so an open keyboard shrinks the app
      instead of covering its bottom row. */
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--app-vh, 100dvh);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  overscroll-behavior: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--app-vh, 100dvh);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    overscroll-behavior: none;
 }
 
 .mobile-pane {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .mobile-scroller {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  /* The crux of the swipe fix. Without this the browser claims horizontal
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* The crux of the swipe fix. Without this the browser claims horizontal
      panning for itself and cancels the pointer stream before a drag completes,
      so the handler never fires. pan-y keeps vertical scrolling native and
      hands horizontal movement to us. */
-  touch-action: pan-y;
-  /* Vertical only. overflow-x hidden stops wide content scrolling sideways at
+    touch-action: pan-y;
+    /* Vertical only. overflow-x hidden stops wide content scrolling sideways at
      all, and overscroll-behavior none stops iOS rubber-banding in either axis
      when the content ends. */
-  overflow-x: hidden;
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
-  /* Room for the tab bar plus the home indicator. */
-  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    /* Room for the tab bar plus the home indicator. */
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 .swipe-surface {
-  /* Transformed while a swipe is in progress. Kept separate from the scroller
+    /* Transformed while a swipe is in progress. Kept separate from the scroller
      so moving it cannot disturb scrolling. */
-  min-height: 100%;
-  will-change: transform;
+    min-height: 100%;
+    will-change: transform;
 }
 
 /* The scroller holds a pane that already scrolls on desktop; on a phone the
    scroller owns the scrolling and the pane just flows. */
 .mobile-scroller .pane {
-  overflow: visible;
-  height: auto;
-  border: none;
+    overflow: visible;
+    height: auto;
+    border: none;
 }
 
 .mobile-scroller .list-column {
-  border: none;
+    border: none;
 }
 
 /* ---------- mobile bars ---------- */
 
 .mobile-bar {
-  touch-action: manipulation;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 52px;
-  padding: 0 4px;
-  padding-top: env(safe-area-inset-top);
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 52px;
+    padding: 0 4px;
+    padding-top: env(safe-area-inset-top);
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .bar-title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  padding: 0 4px;
-  font-size: 15px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* 44px is the smallest target a thumb reliably hits. */
 .bar-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--text);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 6px;
 }
 
 .bar-btn:active {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .bar-btn.starred {
-  color: var(--star);
+    color: var(--star);
 }
 
 /* The toolbar's menu button gets the same target size inside a mobile bar. */
 .mobile-bar .menu .btn {
-  min-width: 44px;
-  height: 44px;
-  border: none;
-  background: none;
-  font-size: 18px;
+    min-width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    font-size: 18px;
 }
 
 /* ---------- tab bar ---------- */
 
 .tabbar {
-  touch-action: manipulation;
-  display: flex;
-  flex-shrink: 0;
-  background: var(--bg-sunken);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
+    touch-action: manipulation;
+    display: flex;
+    flex-shrink: 0;
+    background: var(--bg-sunken);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 52px;
-  padding: 6px 2px;
-  border: none;
-  background: none;
-  color: var(--text-faint);
-  cursor: pointer;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 52px;
+    padding: 6px 2px;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    cursor: pointer;
 }
 
 .tab.active {
-  color: var(--accent);
+    color: var(--accent);
 }
 
 .tab-glyph {
-  position: relative;
-  font-size: 16px;
-  line-height: 1;
+    position: relative;
+    font-size: 16px;
+    line-height: 1;
 }
 
 .tab-label {
-  font-size: 10px;
-  font-weight: 600;
+    font-size: 10px;
+    font-weight: 600;
 }
 
 .tab-badge {
-  position: absolute;
-  top: -6px;
-  left: 10px;
-  background: var(--accent);
-  color: var(--accent-text);
-  border-radius: 8px;
-  padding: 0 4px;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 14px;
-  min-width: 14px;
-  text-align: center;
+    position: absolute;
+    top: -6px;
+    left: 10px;
+    background: var(--accent);
+    color: var(--accent-text);
+    border-radius: 8px;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    min-width: 14px;
+    text-align: center;
 }
 
 /* ---------- drawer ---------- */
 
 .drawer-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: rgb(0 0 0 / 45%);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgb(0 0 0 / 45%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
 }
 
 .drawer-scrim.open {
-  opacity: 1;
-  pointer-events: auto;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .drawer {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 61;
-  width: min(84vw, 320px);
-  background: var(--bg-sunken);
-  border-right: 1px solid var(--border);
-  transform: translateX(-100%);
-  transition: transform 200ms ease, visibility 200ms;
-  overflow-y: auto;
-  padding-top: env(safe-area-inset-top);
-  overscroll-behavior: contain;
-  /* Hidden, not merely off-screen. A translated-away fixed element gets
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 61;
+    width: min(84vw, 320px);
+    background: var(--bg-sunken);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition:
+        transform 200ms ease,
+        visibility 200ms;
+    overflow-y: auto;
+    padding-top: env(safe-area-inset-top);
+    overscroll-behavior: contain;
+    /* Hidden, not merely off-screen. A translated-away fixed element gets
      painted into iOS's swipe-back transition, which is why the drawer
      appeared during the system back gesture. */
-  visibility: hidden;
+    visibility: hidden;
 }
 
 .drawer.open {
-  transform: none;
-  visibility: visible;
+    transform: none;
+    visibility: visible;
 }
 
 .drawer .sidebar {
-  border: none;
-  height: auto;
+    border: none;
+    height: auto;
 }
 
 /* Thumb-sized rows in the drawer; the desktop's 26px is a mouse target. */
 .drawer .nav-item {
-  min-height: 44px;
-  font-size: 14px;
+    min-height: 44px;
+    font-size: 14px;
 }
 
 .drawer .nav-item.feed {
-  font-size: 13.5px;
+    font-size: 13.5px;
 }
 
 /* ---------- bottom sheet ---------- */
 
 .sheet-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: rgb(0 0 0 / 45%);
-  display: flex;
-  align-items: flex-end;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgb(0 0 0 / 45%);
+    display: flex;
+    align-items: flex-end;
 }
 
 .sheet {
-  width: 100%;
-  background: var(--bg-raised);
-  border-radius: 14px 14px 0 0;
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  max-height: 80dvh;
-  overflow-y: auto;
+    width: 100%;
+    background: var(--bg-raised);
+    border-radius: 14px 14px 0 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    max-height: 80dvh;
+    overflow-y: auto;
 }
 
 .sheet-handle {
-  width: 36px;
-  height: 4px;
-  margin: 4px auto 10px;
-  border-radius: 2px;
-  background: var(--border-strong);
+    width: 36px;
+    height: 4px;
+    margin: 4px auto 10px;
+    border-radius: 2px;
+    background: var(--border-strong);
 }
 
 .sheet-account {
-  padding: 4px 20px 10px;
-  font-size: 12px;
-  color: var(--text-muted);
+    padding: 4px 20px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 .sheet-item {
-  display: block;
-  width: 100%;
-  min-height: 48px;
-  padding: 0 20px;
-  border: none;
-  background: none;
-  text-align: left;
-  font-size: 15px;
-  color: var(--text);
-  cursor: pointer;
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 20px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 15px;
+    color: var(--text);
+    cursor: pointer;
 }
 
 .sheet-item:active {
-  background: var(--bg-hover);
+    background: var(--bg-hover);
 }
 
 .sheet-item.danger {
-  color: var(--danger);
+    color: var(--danger);
 }
 
 /* ---------- dialogs become sheets on a phone ---------- */
 
 @media (max-width: 859px) {
-  .backdrop {
-    /* Full screen, not a bottom sheet: a sheet sits precisely where the
+    .backdrop {
+        /* Full screen, not a bottom sheet: a sheet sits precisely where the
        keyboard opens, which left the share box unreachable. */
-    align-items: stretch;
-    justify-items: stretch;
-    padding: 0;
-  }
+        align-items: stretch;
+        justify-items: stretch;
+        padding: 0;
+    }
 
-  .dialog,
-  .dialog.subscriptions {
-    width: 100%;
-    height: var(--app-vh, 100dvh);
-    max-height: none;
-    overflow-y: auto;
-    border-radius: 0;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-    padding-top: calc(16px + env(safe-area-inset-top));
-  }
+    .dialog,
+    .dialog.subscriptions {
+        width: 100%;
+        height: var(--app-vh, 100dvh);
+        max-height: none;
+        overflow-y: auto;
+        border-radius: 0;
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+        padding-top: calc(16px + env(safe-area-inset-top));
+    }
 
-  /* Actions stay put at the bottom of the panel, above the keyboard, since
+    /* Actions stay put at the bottom of the panel, above the keyboard, since
      the panel itself is only as tall as the visible viewport. */
-  .dialog-actions {
-    position: sticky;
-    bottom: 0;
-    background: var(--bg-raised);
-    padding-top: 12px;
-    margin-top: 16px;
-  }
+    .dialog-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--bg-raised);
+        padding-top: 12px;
+        margin-top: 16px;
+    }
 
-  .dialog .btn {
-    min-height: 44px;
-    padding: 0 16px;
-  }
+    .dialog .btn {
+        min-height: 44px;
+        padding: 0 16px;
+    }
 
-  .dialog textarea,
-  .dialog input[type="text"] {
-    font-size: 16px; /* anything smaller makes iOS zoom the page on focus */
-    padding: 10px;
-  }
+    .dialog textarea,
+    .dialog input[type="text"] {
+        font-size: 16px; /* anything smaller makes iOS zoom the page on focus */
+        padding: 10px;
+    }
 
-  /* An article needs the full width on a narrow screen. */
-  .article {
-    padding: 16px 16px 48px;
-  }
+    /* An article needs the full width on a narrow screen. */
+    .article {
+        padding: 16px 16px 48px;
+    }
 }
 
 /* A refresh in progress. Miniflux fetches in the background and can take the
@@ -1412,18 +1419,213 @@ a {
    Only the glyph turns: rotating the whole button spins its border and
    background with it, which looks broken rather than busy. */
 .spinning {
-  display: inline-block;
-  animation: spin 1.1s linear infinite;
+    display: inline-block;
+    animation: spin 1.1s linear infinite;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinning {
-    animation: none;
-    opacity: 0.6;
-  }
+    .spinning {
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+/* ---------- search ---------- */
+
+.search-view {
+    background: var(--bg);
+    padding-bottom: 40px;
+}
+
+.search-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-sunken);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+    /* 16px so iOS does not zoom the page when it takes focus. */
+    font-size: 16px;
+}
+
+.search-input:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    outline-offset: -1px;
+}
+
+.scope-chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.chip {
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    color: var(--text-muted);
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 11.5px;
+    cursor: pointer;
+}
+
+.chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.search-section {
+    padding: 4px 0 8px;
+}
+
+.search-section h4 {
+    margin: 10px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.search-section h4 .count {
+    color: var(--text-faint);
+    font-weight: 600;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 7px 12px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.search-row:hover {
+    background: var(--bg-hover);
+}
+
+.search-row.selected {
+    background: var(--bg-selected);
+}
+
+.search-row .title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.search-row.read .title {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.search-row .meta {
+    font-size: 11px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* An article result stacks its title over its source, since both are long. */
+.search-row.entry {
+    display: block;
+}
+
+.search-row.entry .title,
+.search-row.entry .meta {
+    display: block;
+    max-width: none;
+    white-space: normal;
+}
+
+.search-row.entry .meta {
+    margin-top: 2px;
+}
+
+.search-hint,
+.search-empty {
+    margin: 14px 12px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    line-height: 1.5;
+}
+
+.search-empty code {
+    background: var(--bg-sunken);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* The clear button is ours, not the browser's: WebKit only reveals the native
+   one in <input type="search"> on hover, so there is no sign the field can be
+   cleared until the pointer happens to land on it. */
+.search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration {
+    appearance: none;
+    display: none;
+}
+
+.search-clear {
+    position: absolute;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.search-clear:hover {
+    background: var(--border-strong);
+    color: var(--text);
+}
+
+.search-input {
+    padding-right: 38px;
 }

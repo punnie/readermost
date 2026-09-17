@@ -86,6 +86,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("GET /api/shared", s.protected(s.handleSharedRiver))
 	mux.Handle("POST /api/share", s.mutating(s.handleShare))
 	mux.Handle("GET /api/users/{id}/avatar", s.protected(s.handleAvatar))
+	mux.Handle("GET /api/search/shared", s.protected(s.handleSearchShared))
 	mux.Handle("GET /api/shared/lookup", s.protected(s.handleLookupShare))
 	mux.Handle("GET /api/shared/{id}/article", s.protected(s.handleArticle))
 	mux.Handle("POST /api/shared/{id}/read", s.mutating(s.handleMarkRiverRead))

@@ -31,6 +31,7 @@ interface Props {
   onUnsubscribe: (feedId: number, title: string) => void;
   onRenameFolder: (categoryId: number, title: string) => void;
   onDeleteFolder: (categoryId: number, title: string) => void;
+  onSearchHere: (scope: Selection) => void;
 }
 
 
@@ -58,6 +59,7 @@ export function ListToolbar({
   onUnsubscribe,
   onRenameFolder,
   onDeleteFolder,
+  onSearchHere,
 }: Props) {
   const isRiver = selection.kind === "shared";
 
@@ -136,6 +138,7 @@ export function ListToolbar({
           onUnsubscribe={onUnsubscribe}
           onRenameFolder={onRenameFolder}
           onDeleteFolder={onDeleteFolder}
+          onSearchHere={onSearchHere}
         />
       )}
     </div>

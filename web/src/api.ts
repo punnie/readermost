@@ -188,6 +188,10 @@ export const api = {
 
   shared: () => request<SharedRiver>("/api/shared"),
 
+  /** Search the shared river, over the server's cached channel snapshot. */
+  searchShared: (query: string) =>
+    request<SharedRiver>(`/api/search/shared?q=${encodeURIComponent(query)}`),
+
   sharedArticle: (postId: string) =>
     request<SharedArticleData>(`/api/shared/${postId}/article`),
 

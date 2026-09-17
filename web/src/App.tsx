@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 import { ApiError, api } from "./api";
 import {
@@ -9,6 +9,7 @@ import {
   useMe,
   useReadBatcher,
   useSetStatus,
+  useDebounced,
   useMoveFeed,
   useRefreshFeeds,
   unreadForSelection,
@@ -27,6 +28,7 @@ import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
 import { NewFolder } from "./components/NewFolder";
 import { ListToolbar } from "./components/ListToolbar";
+import { SearchView } from "./components/SearchView";
 import { ListMenu } from "./components/ListMenu";
 import { MenuItem, MenuSeparator } from "./components/Menu";
 import { MobileLayout } from "./components/MobileLayout";
@@ -39,7 +41,7 @@ import { useSwipeNavigation } from "./swipe";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
-import { pathFor, routeFromPath, sameSelection } from "./routes";
+import { pathFor, pathForSearch, routeFrom, sameSelection } from "./routes";
 import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
 import {
   matchesLength,
@@ -99,7 +101,8 @@ export function App() {
   const tree = useTree();
 
   const [location, navigate] = useLocation();
-  const route = useMemo(() => routeFromPath(location), [location]);
+  const queryString = useSearch();
+  const route = useMemo(() => routeFrom(location, queryString), [location, queryString]);
   const selection = route.selection;
   const selectedEntryId = route.entryID;
 
@@ -176,8 +179,59 @@ export function App() {
     // Always loaded, not just in the shared view: the sidebar badge needs it.
   });
   const sharedItems = useMemo(() => shared.data?.items ?? [], [shared.data]);
-  const selectedSharedItem =
-    sharedItems.find((item) => item.post_id === selectedSharedPost) ?? sharedItems[0];
+  // Falling back to the newest item is right for /shared, but not when a
+  // specific post was requested: showing a different article is worse than
+  // showing none.
+  const selectedSharedItem = selectedSharedPost
+    ? sharedItems.find((item) => item.post_id === selectedSharedPost)
+    : sharedItems[0];
+
+  // Search lives in the query string, so the route is the source of truth for
+  // it too. The typed value is debounced before it becomes a request.
+  const searchRoute = route.search;
+  const [pendingQuery, setPendingQuery] = useState(searchRoute?.query ?? "");
+  const [searchScopeCandidate, setSearchScopeCandidate] = useState<Selection>();
+
+  useEffect(() => {
+    setPendingQuery(searchRoute?.query ?? "");
+  }, [searchRoute?.query]);
+
+  const debouncedQuery = useDebounced(pendingQuery, 300);
+
+  // Keep the address in step with the settled query, replacing rather than
+  // pushing so typing does not fill the history with every keystroke.
+  useEffect(() => {
+    if (!searchRoute) return;
+    if (debouncedQuery === searchRoute.query) return;
+    navigate(pathForSearch(debouncedQuery, searchRoute.scope), { replace: true });
+  }, [debouncedQuery, searchRoute, navigate]);
+
+  const searchEntries = useQuery({
+    queryKey: ["search-entries", debouncedQuery, searchRoute?.scope],
+    queryFn: () =>
+      api.entries({
+        search: debouncedQuery,
+        limit: 50,
+        status: ["unread", "read"],
+        feedId: searchRoute?.scope?.kind === "feed" ? searchRoute.scope.id : undefined,
+        categoryId:
+          searchRoute?.scope?.kind === "category" ? searchRoute.scope.id : undefined,
+      }),
+    enabled: Boolean(searchRoute) && debouncedQuery.trim().length > 1,
+  });
+
+  /** Results behave as a list, so j/k and swipe traverse them like any other. */
+  const searchResults = searchEntries.data?.entries ?? [];
+
+  const openSearchEntry = useCallback(
+    (entry: Entry) => {
+      if (!searchRoute) return;
+      navigate(pathForSearch(searchRoute.query, searchRoute.scope, entry.id), {
+        replace: selectedEntryId !== undefined,
+      });
+    },
+    [navigate, searchRoute, selectedEntryId],
+  );
 
   const entries = useEntries(selection, sort, statusFilter, lengthFilter);
   const setStatus = useSetStatus(selection, sort, statusFilter, lengthFilter);
@@ -199,7 +253,29 @@ export function App() {
     const seed = JSON.stringify(selection).length * 2654435761;
     return shuffle(fetched, seed);
   }, [entries.data, sort, selection, lengthFilter]);
-  const selectedEntry = list.find((entry) => entry.id === selectedEntryId);
+  // In search mode the open article comes from the results, not from the
+  // selection's own list — looking it up in the wrong one left the reader pane
+  // empty when a result was clicked.
+  const entryInList = (searchRoute ? searchResults : list).find(
+    (entry) => entry.id === selectedEntryId,
+  );
+
+  /**
+   * The open article, when it is not in the list on screen.
+   *
+   * The URL addresses an article, so the app has to be able to show it whatever
+   * the list happens to contain. Reading one in a feed filtered to unread takes
+   * it out of that list the moment it is marked read, and without this the
+   * back button, a reload, or a bookmarked link all landed on an empty pane.
+   */
+  const detachedEntry = useQuery({
+    queryKey: ["entry", selectedEntryId],
+    queryFn: () => api.entry(selectedEntryId!),
+    enabled: selectedEntryId !== undefined && !entryInList,
+    staleTime: 60_000,
+  });
+
+  const selectedEntry = entryInList ?? detachedEntry.data;
 
   // Does the selected article already have a discussion? Owned here rather than
   // in EntryView so the S shortcut and the button agree on the answer.
@@ -326,6 +402,27 @@ export function App() {
     [tree.data, refreshTree],
   );
 
+  /**
+   * The global search: always everywhere, whatever is on screen.
+   *
+   * Narrowing is a separate, deliberate act — "Search here" in a feed's menu —
+   * because a button in the global bar that quietly searched inside the current
+   * feed was indistinguishable from one that was broken.
+   */
+  const openSearch = useCallback(() => {
+    setSearchScopeCandidate(undefined);
+    navigate(pathForSearch(""));
+  }, [navigate]);
+
+  /** Search within one feed or folder, from its own menu. */
+  const searchHere = useCallback(
+    (scope: Selection) => {
+      setSearchScopeCandidate(scope);
+      navigate(pathForSearch("", scope));
+    },
+    [navigate],
+  );
+
   const openDiscussion = useCallback(
     (postId: string) => {
       // One navigation, so the back button returns to the article rather than
@@ -410,6 +507,16 @@ export function App() {
 
   const move = useCallback(
     (delta: number) => {
+      if (searchRoute) {
+        if (searchResults.length === 0) return;
+        const current = searchResults.findIndex((entry) => entry.id === selectedEntryId);
+        const next =
+          current === -1 ? 0 : Math.min(Math.max(current + delta, 0), searchResults.length - 1);
+        const entry = searchResults[next];
+        if (entry) openSearchEntry(entry);
+        return;
+      }
+
       // The shared view is a list like any other, so j/k walks it the same way.
       if (selection.kind === "shared") {
         if (sharedItems.length === 0) return;
@@ -429,7 +536,18 @@ export function App() {
       const entry = list[next];
       if (entry) openEntry(entry);
     },
-    [selection.kind, sharedItems, selectedSharedItem, openShared, list, selectedEntryId, openEntry],
+    [
+      searchRoute,
+      searchResults,
+      openSearchEntry,
+      selection.kind,
+      sharedItems,
+      selectedSharedItem,
+      openShared,
+      list,
+      selectedEntryId,
+      openEntry,
+    ],
   );
 
   /** The link the keyboard should open, whichever view is active. */
@@ -503,6 +621,7 @@ export function App() {
       if (pendingGoto.current) setSelection({ kind: "all" });
       pendingGoto.current = false;
     },
+    "/": () => openSearch(),
     "?": () => setShowShortcuts(true),
     Escape: () => {
       setShowShortcuts(false);
@@ -563,6 +682,7 @@ export function App() {
       onUnsubscribe={unsubscribe}
       onRenameFolder={renameFolder}
       onDeleteFolder={deleteFolder}
+      onSearchHere={searchHere}
       extra={(close) => (
         <>
           {showingArticle && selectedEntry && (
@@ -648,6 +768,31 @@ export function App() {
       {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
     </>
   );
+
+  const searchPane = searchRoute ? (
+    <SearchView
+      query={pendingQuery}
+      scope={searchRoute.scope}
+      scopeCandidate={(() => {
+        // Reloading /search?in=feed:12 should still show the chip.
+        const candidate = searchScopeCandidate ?? searchRoute?.scope;
+        return candidate
+          ? { selection: candidate, title: selectionTitle(candidate, tree.data) }
+          : undefined;
+      })()}
+      tree={tree.data}
+      entries={searchResults}
+      entriesLoading={searchEntries.isFetching}
+      selectedEntryId={selectedEntryId}
+      onQueryChange={setPendingQuery}
+      onScopeChange={(next) =>
+        navigate(pathForSearch(searchRoute.query, next), { replace: true })
+      }
+      onOpenEntry={openSearchEntry}
+      onOpenFeed={(next) => navigate(pathFor(next))}
+      onOpenShared={(postId) => navigate(pathFor({ kind: "shared" }, postId))}
+    />
+  ) : null;
 
   const listPane =
     selection.kind === "shared" ? (
@@ -754,8 +899,9 @@ export function App() {
               />
             ) : (
               <MobileListBar
-                title={selectionTitle(selection, tree.data)}
+                title={searchRoute ? "Search" : selectionTitle(selection, tree.data)}
                 onOpenDrawer={() => setDrawerOpen(true)}
+                onSearch={openSearch}
                 menu={mobileMenu}
               />
             )
@@ -781,7 +927,11 @@ export function App() {
               wobble sideways under a thumb.
             */}
             <div className="swipe-surface" ref={articleRef}>
-              {showingArticle ? articlePane : listPane}
+              {searchRoute && !showingArticle
+                ? searchPane
+                : showingArticle
+                  ? articlePane
+                  : listPane}
             </div>
           </div>
         </MobileLayout>
@@ -792,7 +942,6 @@ export function App() {
             onClose={() => setMoreOpen(false)}
             onSubscribe={() => setShowAdd(true)}
             onSubscriptions={() => setShowSettings(true)}
-            onShortcuts={() => setShowShortcuts(true)}
             onSignOut={signOut}
           />
         )}
@@ -818,6 +967,9 @@ export function App() {
           disabled={refreshingEverything || !online}
         >
           {refreshingEverything ? "Refreshing…" : "Refresh"}
+        </button>
+        <button className="btn" onClick={openSearch} title="Search (/)">
+          ⌕ Search
         </button>
         <button className="btn" onClick={() => setShowAdd(true)}>
           + Subscribe
@@ -875,6 +1027,7 @@ export function App() {
         scrolls with neither — it stays pinned while the list moves under it.
       */}
       <div className="list-column">
+        {searchRoute ? null : (
         <ListToolbar
           selection={selection}
           title={selectionTitle(selection, tree.data)}
@@ -899,9 +1052,13 @@ export function App() {
           onUnsubscribe={unsubscribe}
           onRenameFolder={renameFolder}
           onDeleteFolder={deleteFolder}
+          onSearchHere={searchHere}
         />
+        )}
 
-        {selection.kind === "shared" ? (
+        {searchRoute ? (
+          searchPane
+        ) : selection.kind === "shared" ? (
           <SharedList
             items={sharedItems}
             selectedId={selectedSharedItem?.post_id}

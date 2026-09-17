@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_ROUTE, pathFor, routeFromPath, sameSelection } from "./routes";
+import {
+  DEFAULT_ROUTE,
+  pathFor,
+  pathForSearch,
+  routeFrom,
+  routeFromPath,
+  sameSelection,
+} from "./routes";
 import type { Selection } from "./types";
 
 const SELECTIONS: Selection[] = [
@@ -81,5 +88,49 @@ describe("sameSelection", () => {
     expect(sameSelection({ kind: "feed", id: 1 }, { kind: "category", id: 1 })).toBe(false);
     expect(sameSelection({ kind: "feed", id: 1 }, { kind: "feed", id: 2 })).toBe(false);
     expect(sameSelection({ kind: "unread" }, { kind: "all" })).toBe(false);
+  });
+});
+
+describe("the search route", () => {
+  it("round-trips a query", () => {
+    const route = routeFrom("/search", "?q=goroutine");
+    expect(route.search?.query).toBe("goroutine");
+    expect(route.search?.scope).toBeUndefined();
+  });
+
+  it("round-trips a scope", () => {
+    for (const scope of [
+      { kind: "feed", id: 12 } as const,
+      { kind: "category", id: 5 } as const,
+    ]) {
+      const path = pathForSearch("governo", scope);
+      const [pathname, query] = path.split("?");
+      const route = routeFrom(pathname, `?${query}`);
+      expect(route.search?.query).toBe("governo");
+      expect(route.search?.scope).toEqual(scope);
+    }
+  });
+
+  it("round-trips an open result", () => {
+    const path = pathForSearch("rust", undefined, 345);
+    const [pathname, query] = path.split("?");
+    const route = routeFrom(pathname, `?${query}`);
+    expect(route.entryID).toBe(345);
+  });
+
+  it("survives a query with awkward characters", () => {
+    const path = pathForSearch("c++ & go?", undefined);
+    const [pathname, query] = path.split("?");
+    expect(routeFrom(pathname, `?${query}`).search?.query).toBe("c++ & go?");
+  });
+
+  it("ignores a malformed scope rather than failing", () => {
+    expect(routeFrom("/search", "?q=x&in=feed:abc").search?.scope).toBeUndefined();
+    expect(routeFrom("/search", "?q=x&in=nonsense").search?.scope).toBeUndefined();
+  });
+
+  it("leaves other routes without a search", () => {
+    expect(routeFrom("/unread", "").search).toBeUndefined();
+    expect(routeFrom("/feed/12", "?q=ignored").search).toBeUndefined();
   });
 });
