@@ -32,7 +32,10 @@ export function EntryView({
 
   useEffect(() => {
     if (focusDiscussion > 0) {
-      discussionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      discussionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
   }, [focusDiscussion]);
 
@@ -90,7 +93,12 @@ export function EntryView({
           <button className="btn" onClick={() => onToggleRead(entry)}>
             Mark {entry.status === "read" ? "unread" : "read"}
           </button>
-          <a className="btn" href={entry.url} target="_blank" rel="noreferrer noopener">
+          <a
+            className="btn"
+            href={entry.url}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
             Open original
           </a>
         </div>
@@ -115,14 +123,22 @@ export function EntryView({
           {shared ? (
             <>
               <div className="discussion-origin">
-                <Avatar userId={shared.author!.user_id} name={sharerName} size={22} />
+                <Avatar
+                  userId={shared.author!.user_id}
+                  name={sharerName}
+                  size={22}
+                />
                 <span>
                   Shared by <strong>{sharerName}</strong>
                   {shared.created_at
                     ? ` on ${formatDate(shared.created_at)}`
                     : null}
                 </span>
-                <a href={shared.permalink} target="_blank" rel="noreferrer noopener">
+                <a
+                  href={shared.permalink}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
                   Mattermost ↗
                 </a>
               </div>
@@ -142,10 +158,13 @@ export function EntryView({
               ) : (
                 <>
                   <p>
-                    Nobody has shared this yet. Share it to start a discussion your
-                    friends can join — here or in Mattermost.
+                    Nobody has shared this yet. Share it to start a discussion
+                    your friends can join — here or in Mattermost.
                   </p>
-                  <button className="btn btn-primary" onClick={() => onShare(entry)}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => onShare(entry)}
+                  >
                     Share to Mattermost
                   </button>
                 </>

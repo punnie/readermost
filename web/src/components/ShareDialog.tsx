@@ -77,7 +77,11 @@ export function ShareDialog({ entry, onCancel, onShare }: Props) {
           <button className="btn" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={() => void submit()} disabled={busy}>
+          <button
+            className="btn btn-primary"
+            onClick={() => void submit()}
+            disabled={busy}
+          >
             {busy ? "Sharing…" : "Share"}
           </button>
         </div>

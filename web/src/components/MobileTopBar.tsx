@@ -10,10 +10,19 @@ interface ListBarProps {
 }
 
 /** The bar over a list: sources, what you are reading, and its options. */
-export function MobileListBar({ title, onOpenDrawer, onSearch, menu }: ListBarProps) {
+export function MobileListBar({
+  title,
+  onOpenDrawer,
+  onSearch,
+  menu,
+}: ListBarProps) {
   return (
     <header className="mobile-bar">
-      <button className="bar-btn" aria-label="Show sources" onClick={onOpenDrawer}>
+      <button
+        className="bar-btn"
+        aria-label="Show sources"
+        onClick={onOpenDrawer}
+      >
         <span aria-hidden="true">☰</span>
       </button>
       <h1 className="bar-title">{title}</h1>
@@ -45,7 +54,11 @@ export function MobileArticleBar({
 }: ArticleBarProps) {
   return (
     <header className="mobile-bar">
-      <button className="bar-btn" aria-label="Back to the list" onClick={onBack}>
+      <button
+        className="bar-btn"
+        aria-label="Back to the list"
+        onClick={onBack}
+      >
         <span aria-hidden="true">‹</span>
       </button>
       <h1 className="bar-title">{subtitle}</h1>
@@ -60,7 +73,7 @@ export function MobileArticleBar({
         </button>
       )}
       {onShare && (
-        <button className="bar-btn" aria-label="Share to Mattermost" onClick={onShare}>
+        <button className="bar-btn" aria-label="Share" onClick={onShare}>
           <Icon name="share" size={17} />
         </button>
       )}

@@ -358,8 +358,35 @@ a {
 
 .article-actions {
     display: flex;
+    /* One line, always: the buttons shrink to fit rather than wrapping. */
+    flex-wrap: nowrap;
     gap: 8px;
     margin-bottom: 16px;
+}
+
+/*
+   Buttons elsewhere are sized by their text. These four have to share whatever
+   width the screen has, so they may shrink — proportionally, which means the
+   long label ("Subscribe to <feed name>") gives up the most and "☆ Star" keeps
+   its text. min-width:0 is what lets a flex item shrink below its content at
+   all; the floor keeps a shrunken button tappable.
+
+   inline-block rather than the base inline-flex: text-overflow only ellipsises
+   text in a block container, and an inline-flex button's label is an anonymous
+   flex item that would simply be cut mid-letter instead. None of these buttons
+   has an icon, so nothing needs the flex box.
+*/
+.article-actions .btn {
+    display: inline-block;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+.article-actions .btn:not(:only-child) {
+    min-width: 56px;
 }
 
 .article-body {
@@ -1411,6 +1438,19 @@ a {
     /* An article needs the full width on a narrow screen. */
     .article {
         padding: 16px 16px 48px;
+    }
+
+    /* The four action buttons have to share 390px minus the article's padding.
+       At the desktop metrics they miss by about thirty pixels and every label
+       ends in an ellipsis; trimming the gap and the side padding buys back more
+       than that, so the words survive. The extra vertical padding is free width
+       and makes a better tap target. */
+    .article-actions {
+        gap: 6px;
+    }
+
+    .article-actions .btn {
+        padding: 6px 7px;
     }
 }
 
