@@ -94,6 +94,10 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("GET /api/shared/{id}/thread", s.protected(s.handleThread))
 	mux.Handle("POST /api/shared/{id}/comment", s.mutating(s.handleComment))
 
+	// The link on a share card in Mattermost. A page, not an API route: it
+	// redirects into the river.
+	mux.HandleFunc("GET /s/{id}", s.handleShareLink)
+
 	return mux
 }
 

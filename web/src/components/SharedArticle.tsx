@@ -21,12 +21,14 @@ function hostOf(url: string): string {
 }
 
 /**
- * The sharer's own words, separated from the link markup the server appends.
- * A share is composed as "note\n\n[title](url)", so anything before the blank
- * line is what the person actually said.
+ * The sharer's own words. The server separates them from the article for a
+ * Readermost share; a link pasted into Mattermost is all note.
  */
 function noteOf(item: SharedItem): string {
   if (!item.link?.from_readermost) return item.message;
+  if (item.link.note !== undefined) return item.link.note;
+  // Only a river cached before the server sent notes lacks one; those shares
+  // were composed as "note\n\n[title](url)".
   const split = item.message.indexOf("\n\n");
   return split === -1 ? "" : item.message.slice(0, split).trim();
 }

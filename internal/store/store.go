@@ -108,6 +108,18 @@ CREATE TABLE IF NOT EXISTS river_reads (
 );
 
 CREATE INDEX IF NOT EXISTS river_reads_user_idx ON river_reads(user_id);
+
+-- Shares made from Readermost, so the post in Mattermost can link back to the
+-- river. The id is generated here, before the post exists, which is what lets
+-- the link go into the post itself; post_id is filled in once Mattermost
+-- answers. Links made directly in the channel have no row, and need none.
+CREATE TABLE IF NOT EXISTS shares (
+  id         TEXT    PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entry_url  TEXT    NOT NULL,
+  post_id    TEXT    NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
 `
 
 // Open connects to the SQLite database at path and applies the schema.

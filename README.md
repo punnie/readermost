@@ -44,6 +44,10 @@ bag. Neither is a copy — both are the source of truth for their half.
   the full text, so it is copied at share time.
 - **River read state**, per user. Feed read state is Miniflux's; the river is
   not something Miniflux knows about at all.
+- **Share links.** A share posted from Readermost carries a card linking back
+  to the river. The link's id is made here before posting, then tied to the
+  Mattermost post once it exists — so these links belong to the reader, and a
+  link pasted straight into the channel has none.
 
 > The article cache is keyed by URL alone and readable by every user. That is
 > sound only while feeds are public, which is the current assumption —
@@ -129,7 +133,8 @@ A round trip worth doing once, because it exercises every seam at once:
    discovers the feed).
 2. Press `S` on an article to share it.
 3. Open <http://localhost:8065> in the ~reader-shared channel: the post is there,
-   authored by you, with the article rendered as a link.
+   authored by you, as a card with the article's title, excerpt and a
+   *Discuss in Readermost* link back to the river.
 4. Reply from Mattermost. The comment shows up in Readermost without a refresh.
 5. Paste a bare URL into the channel from Mattermost — it appears in the river
    too, because the channel is where shared links live. Post a message with no

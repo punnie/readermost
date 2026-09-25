@@ -28,7 +28,7 @@ func (s *Service) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, identity)))
+		next.ServeHTTP(w, r.WithContext(WithIdentity(r.Context(), identity)))
 	})
 }
 

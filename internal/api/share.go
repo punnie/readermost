@@ -2,8 +2,9 @@ package api
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,8 +12,10 @@ import (
 	"time"
 
 	"github.com/punnie/readermost/internal/auth"
+	"github.com/punnie/readermost/internal/crypto"
 	"github.com/punnie/readermost/internal/mattermost"
 	"github.com/punnie/readermost/internal/miniflux"
+	"github.com/punnie/readermost/internal/store"
 )
 
 // urlPattern finds the first link in a post written by hand in Mattermost, so
@@ -34,6 +37,10 @@ type sharedLink struct {
 	Author      string `json:"author,omitempty"`
 	PublishedAt string `json:"published_at,omitempty"`
 	Excerpt     string `json:"excerpt,omitempty"`
+	// Note is the sharer's own words, apart from the article. Always present
+	// on a Readermost share, even when empty, so the client never has to
+	// guess at it from the message.
+	Note *string `json:"note,omitempty"`
 	// FromReadermost distinguishes a rich share from a bare pasted URL.
 	FromReadermost bool `json:"from_readermost"`
 }
@@ -148,6 +155,7 @@ func countNewerReplies(root *rootPost, seenReplyAt int64) int {
 // in the message text. A post with neither is chat, not a shared article.
 func linkFromPost(post *mattermost.Post) *sharedLink {
 	if shared, ok := post.SharedLink(); ok {
+		note := noteFromMessage(shared.Version, post.Message)
 		return &sharedLink{
 			URL:            shared.EntryURL,
 			Title:          shared.Title,
@@ -157,6 +165,7 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 			Author:         shared.Author,
 			PublishedAt:    shared.PublishedAt,
 			Excerpt:        shared.Excerpt,
+			Note:           &note,
 			FromReadermost: true,
 		}
 	}
@@ -361,17 +370,32 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		return nil
 	}
 
+	// The share's id is Readermost's own, so it exists before the post does
+	// and the card can link back to the river from the start.
+	shareID, err := crypto.ShortID()
+	if err != nil {
+		return err
+	}
+	if err := s.store().CreateShare(ctx, shareID, identity.User.ID, entry.URL); err != nil {
+		return err
+	}
+
+	excerpt := excerptFrom(entry.Content)
+
 	post := &mattermost.Post{
 		ChannelID: s.cfg.Mattermost.SharedChannelID,
-		Message:   shareMessage(request.Message, entry),
+		// The note alone: the article is the card, and a link in the message
+		// would have Mattermost draw a second preview of it.
+		Message: strings.TrimSpace(request.Message),
 	}
+	post.SetAttachments(shareCard(entry, excerpt, s.shareLinkURL(shareID)))
 
 	link := &mattermost.SharedLink{
 		Version:  mattermost.SharePropsVersion,
 		EntryURL: entry.URL,
 		Title:    entry.Title,
 		Author:   entry.Author,
-		Excerpt:  excerptFrom(entry.Content),
+		Excerpt:  excerpt,
 	}
 	if !entry.PublishedAt.IsZero() {
 		link.PublishedAt = entry.PublishedAt.UTC().Format(time.RFC3339)
@@ -384,12 +408,20 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		link.FeedSiteURL = entry.Feed.SiteURL
 	}
 	if err := post.SetSharedLink(link); err != nil {
+		s.dropShare(ctx, shareID)
 		return err
 	}
 
 	created, err := identity.Mattermost(s.mm).CreatePost(ctx, post)
 	if err != nil {
+		s.dropShare(ctx, shareID)
 		return err
+	}
+
+	if err := s.store().AttachSharePost(ctx, shareID, created.ID); err != nil {
+		// The post is out; only the link back into the river is lost, and it
+		// falls back to the river itself.
+		s.log.Warn("attach share post failed", "error", err)
 	}
 
 	// The sharer has the full text; copy it so readers without this feed can
@@ -419,26 +451,52 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 	return nil
 }
 
-// shareMessage composes the post body: the sharer's note, then the article as a
-// markdown link so Mattermost renders and previews it.
-func shareMessage(note string, entry *miniflux.Entry) string {
-	title := strings.TrimSpace(entry.Title)
-	if title == "" {
-		title = entry.URL
+// dropShare forgets a share whose post never reached Mattermost, so no link is
+// left pointing at nothing.
+func (s *Server) dropShare(ctx context.Context, shareID string) {
+	if err := s.store().DeleteShare(ctx, shareID); err != nil {
+		s.log.Warn("drop unposted share failed", "error", err)
 	}
-	// Markdown link text must not contain unescaped brackets.
-	title = strings.NewReplacer("[", "(", "]", ")").Replace(title)
+}
 
-	link := fmt.Sprintf("[%s](%s)", title, entry.URL)
-	if entry.Feed != nil && entry.Feed.Title != "" {
-		link += " — " + entry.Feed.Title
+// shareLinkURL is the address a share card links to. It is resolved by
+// handleShareLink, which knows the post the share became.
+func (s *Server) shareLinkURL(shareID string) string {
+	return strings.TrimRight(s.cfg.PublicURL, "/") + "/s/" + shareID
+}
+
+// shareIDPattern is the shape crypto.ShortID produces. Anything else is not a
+// share, and is not worth a database lookup.
+var shareIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// handleShareLink sends someone who clicked a share card in Mattermost to that
+// share in the river.
+//
+// It is a page navigation, not an API call, so a signed-out visitor is sent to
+// sign in and brought back here rather than handed a 401. A share that cannot
+// be resolved lands on the river rather than an error page.
+func (s *Server) handleShareLink(w http.ResponseWriter, r *http.Request) {
+	shareID := r.PathValue("id")
+
+	if _, ok := auth.FromContext(r.Context()); !ok {
+		back := "/s/" + url.PathEscape(shareID)
+		http.Redirect(w, r, "/auth/login?return="+url.QueryEscape(back), http.StatusFound)
+		return
 	}
 
-	note = strings.TrimSpace(note)
-	if note == "" {
-		return link
+	target := "/shared"
+	if shareIDPattern.MatchString(shareID) {
+		postID, err := s.store().SharePostID(r.Context(), shareID)
+		switch {
+		case err == nil:
+			target += "/" + url.PathEscape(postID)
+		case !errors.Is(err, store.ErrNotFound):
+			s.log.Warn("resolve share link failed", "error", err)
+		}
 	}
-	return note + "\n\n" + link
+
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 type threadMessage struct {
