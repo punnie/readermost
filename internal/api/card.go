@@ -32,8 +32,11 @@ var (
 )
 
 // shareCard is how a share looks in Mattermost: the feed, the article title
-// linking to the original, a preview, the facts about it, and a way back into
-// the river where the discussion lives alongside the full text.
+// linking to the original, a preview, and a way back into the river where the
+// discussion lives alongside the full text.
+//
+// It is kept deliberately short so a busy channel stays scannable. Author,
+// date and reading time are left to the river, which shows them anyway.
 func shareCard(entry *miniflux.Entry, excerpt, riverURL string) mattermost.Attachment {
 	title := strings.TrimSpace(entry.Title)
 	if title == "" {
@@ -64,22 +67,6 @@ func shareCard(entry *miniflux.Entry, excerpt, riverURL string) mattermost.Attac
 		text = append(text, fmt.Sprintf("[Discuss in Readermost](%s)", riverURL))
 	}
 	card.Text = strings.Join(text, "\n\n")
-
-	if author := strings.TrimSpace(entry.Author); author != "" {
-		card.Fields = append(card.Fields, mattermost.AttachmentField{
-			Title: "Author", Value: safeMarkdown(author), Short: true,
-		})
-	}
-	if !entry.PublishedAt.IsZero() {
-		card.Fields = append(card.Fields, mattermost.AttachmentField{
-			Title: "Published", Value: entry.PublishedAt.UTC().Format("2 Jan 2006"), Short: true,
-		})
-	}
-	if entry.ReadingTime > 0 {
-		card.Fields = append(card.Fields, mattermost.AttachmentField{
-			Title: "Reading time", Value: fmt.Sprintf("%d min", entry.ReadingTime), Short: true,
-		})
-	}
 
 	return card
 }

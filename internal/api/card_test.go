@@ -50,20 +50,6 @@ func TestShareCardCarriesTheArticle(t *testing.T) {
 		t.Errorf("fallback %q should name the feed and the URL", card.Fallback)
 	}
 
-	fields := map[string]string{}
-	for _, field := range card.Fields {
-		fields[field.Title] = field.Value
-	}
-	want := map[string]string{
-		"Author":       `Ada\_Lovelace`,
-		"Published":    "1 Sep 2026",
-		"Reading time": "7 min",
-	}
-	for title, value := range want {
-		if fields[title] != value {
-			t.Errorf("field %q = %q, want %q", title, fields[title], value)
-		}
-	}
 }
 
 func TestShareCardLeavesOutWhatItLacks(t *testing.T) {
@@ -74,8 +60,8 @@ func TestShareCardLeavesOutWhatItLacks(t *testing.T) {
 	if card.Title != entry.URL {
 		t.Errorf("title = %q, want the URL when the entry has no title", card.Title)
 	}
-	if card.AuthorName != "" || card.ThumbURL != "" || len(card.Fields) != 0 {
-		t.Errorf("card = %+v, want no feed, thumbnail or fields", card)
+	if card.AuthorName != "" || card.ThumbURL != "" {
+		t.Errorf("card = %+v, want no feed or thumbnail", card)
 	}
 	if card.Text != "[Discuss in Readermost](https://reader.example.org/s/abc)" {
 		t.Errorf("text = %q, want only the river link", card.Text)
