@@ -88,7 +88,11 @@ const PropsKey = "readermost"
 
 // SharePropsVersion is the schema version of SharedLink, so a future change can
 // be recognised rather than guessed at.
-const SharePropsVersion = 1
+//
+// Version 1 composed the message as "note\n\n[title](url) — feed". From version
+// 2 the article is shown as an attachment card and the message is the sharer's
+// note alone, possibly empty.
+const SharePropsVersion = 2
 
 // SharedLink is the metadata Readermost attaches to a shared post.
 //

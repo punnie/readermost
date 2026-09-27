@@ -72,6 +72,8 @@ export interface SharedLink {
   author?: string;
   published_at?: string;
   excerpt?: string;
+  /** The sharer's own words. Present on every Readermost share. */
+  note?: string;
   from_readermost: boolean;
 }
 

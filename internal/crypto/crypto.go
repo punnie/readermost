@@ -124,3 +124,14 @@ func RandomID() (string, error) {
 	}
 	return hex.EncodeToString(buf), nil
 }
+
+// ShortID returns a compact URL-safe token for ids that end up in links people
+// see, where RandomID's 64 characters would be unwieldy. 96 bits is still far
+// beyond guessing.
+func ShortID() (string, error) {
+	buf := make([]byte, 12)
+	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+		return "", fmt.Errorf("crypto: generate short id: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
