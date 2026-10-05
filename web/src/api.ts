@@ -9,6 +9,7 @@ import type {
   ThreadMessage,
   Tree,
 } from "./types";
+import type { ReadingPrefs } from "./reading";
 
 /**
  * Every mutating request carries this header. A cross-site form post cannot set
@@ -98,6 +99,14 @@ function entryParams(query: EntryQuery): string {
 
 export const api = {
   me: () => request<Me>("/api/me"),
+
+  readingPrefs: () => request<unknown>("/api/prefs"),
+
+  setReadingPrefs: (prefs: ReadingPrefs) =>
+    request<unknown>("/api/prefs", {
+      method: "PUT",
+      body: JSON.stringify(prefs),
+    }),
 
   tree: () => request<Tree>("/api/tree"),
 

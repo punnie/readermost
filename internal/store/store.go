@@ -108,6 +108,17 @@ CREATE TABLE IF NOT EXISTS river_reads (
 );
 
 CREATE INDEX IF NOT EXISTS river_reads_user_idx ON river_reads(user_id);
+
+-- How a user likes articles and discussions set: typeface, size and spacing.
+-- It lives here rather than in the browser so it follows them between devices.
+-- A missing row means the defaults.
+CREATE TABLE IF NOT EXISTS reading_prefs (
+  user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  font_family TEXT    NOT NULL,
+  text_size   TEXT    NOT NULL,
+  density     TEXT    NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
 `
 
 // Open connects to the SQLite database at path and applies the schema.

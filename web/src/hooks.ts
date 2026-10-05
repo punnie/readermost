@@ -8,10 +8,58 @@ import {
 import { api, type EntryQuery } from "./api";
 import { sortQuery, type SortOrder } from "./sort";
 import { statusesFor, type LengthFilter, type StatusFilter } from "./filters";
+import {
+  applyReadingPrefs,
+  parseReadingPrefs,
+  readCachedReadingPrefs,
+  type ReadingPrefs,
+} from "./reading";
 import type { Entry, Selection, Tree } from "./types";
 
 export function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me, retry: false });
+}
+
+/**
+ * The signed-in reader's typography choices, put into effect on the page.
+ *
+ * Until the server answers, this device's last-applied copy stands in, so
+ * there is no flash of the default and it still works offline.
+ */
+export function useReadingPrefs(enabled: boolean) {
+  const prefs = useQuery({
+    queryKey: ["reading-prefs"],
+    queryFn: async () => parseReadingPrefs(await api.readingPrefs()),
+    placeholderData: readCachedReadingPrefs,
+    enabled,
+  });
+
+  const data = prefs.data;
+  useEffect(() => {
+    if (data) applyReadingPrefs(data);
+  }, [data]);
+
+  return prefs;
+}
+
+/** Saves typography choices, showing them at once rather than after the round trip. */
+export function useSetReadingPrefs() {
+  const queryClient = useQueryClient();
+  const key = ["reading-prefs"];
+
+  return useMutation({
+    mutationFn: (next: ReadingPrefs) => api.setReadingPrefs(next),
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ReadingPrefs>(key);
+      queryClient.setQueryData(key, next);
+      return { previous };
+    },
+    onError: (_error, _next, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
 }
 
 export function useTree() {

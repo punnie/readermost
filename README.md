@@ -31,7 +31,7 @@ read and starred state. **Mattermost owns the conversation**: every shared link
 is a post and every comment a reply, with share metadata in the post's `props`
 bag. Neither is a copy — both are the source of truth for their half.
 
-**Readermost owns the river**, and its SQLite file holds four things:
+**Readermost owns the river**, and its SQLite file holds five things:
 
 - **Users and sessions.** Miniflux has no act-on-behalf-of-user API, and API
   keys are self-service only — an admin cannot mint one for someone else. So
@@ -44,6 +44,10 @@ bag. Neither is a copy — both are the source of truth for their half.
   the full text, so it is copied at share time.
 - **River read state**, per user. Feed read state is Miniflux's; the river is
   not something Miniflux knows about at all.
+- **Reading preferences**, per user: font (including OpenDyslexic), text size
+  and density for articles and discussions. Kept here rather than in the
+  browser so they follow the reader between devices; open tabs elsewhere are
+  told over the WebSocket and update at once.
 
 > The article cache is keyed by URL alone and readable by every user. That is
 > sound only while feeds are public, which is the current assumption —

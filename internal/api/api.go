@@ -51,6 +51,8 @@ func (s *Server) Routes() *http.ServeMux {
 
 	// Session
 	mux.Handle("GET /api/me", s.protected(s.handleMe))
+	mux.Handle("GET /api/prefs", s.protected(s.handleGetPrefs))
+	mux.Handle("PUT /api/prefs", s.mutating(s.handlePutPrefs))
 
 	// Reader
 	mux.Handle("GET /api/tree", s.protected(s.handleTree))
