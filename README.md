@@ -44,8 +44,9 @@ bag. Neither is a copy — both are the source of truth for their half.
   the full text, so it is copied at share time.
 - **River read state**, per user. Feed read state is Miniflux's; the river is
   not something Miniflux knows about at all.
-- **Reading preferences**, per user: font (including OpenDyslexic), text size
-  and density for articles and discussions. Kept here rather than in the
+- **Appearance preferences**, per user: the app's accent colour, and the font
+  (including OpenDyslexic), text size and density for articles and
+  discussions. Kept here rather than in the
   browser so they follow the reader between devices; open tabs elsewhere are
   told over the WebSocket and update at once.
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Star } from "lucide-react";
 
 import { formatListDate } from "../format";
 
@@ -42,7 +43,9 @@ export function EntryList({ entries, selectedId, onSelect, isLoading, title }: P
           onClick={() => onSelect(entry)}
         >
           <div className="entry-title">
-            {entry.starred && <span className="star">★ </span>}
+            {entry.starred && (
+              <Star className="star" size={12} fill="currentColor" aria-label="Starred" />
+            )}
             {entry.title}
           </div>
           <div className="entry-meta">

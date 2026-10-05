@@ -1,4 +1,16 @@
 import { useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Inbox,
+  Newspaper,
+  Star,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import { DropStrip } from "./DropStrip";
 import { FeedIcon } from "./FeedIcon";
@@ -86,7 +98,7 @@ export function Sidebar({
           }`}
           onClick={() => onSelect({ kind: "shared" })}
         >
-          <span className="twisty" />
+          <NavIcon icon={Users} />
           <span className="label">Shared by friends</span>
           {riverUnread > 0 && <span className="count">{riverUnread}</span>}
         </button>
@@ -99,7 +111,7 @@ export function Sidebar({
           }`}
           onClick={() => onSelect({ kind: "unread" })}
         >
-          <span className="twisty" />
+          <NavIcon icon={Inbox} />
           <span className="label">Unread</span>
           {tree && tree.total_unread > 0 && (
             <span className="count">{tree.total_unread}</span>
@@ -110,7 +122,7 @@ export function Sidebar({
           className={`nav-item ${isSelected({ kind: "all" }) ? "selected" : ""}`}
           onClick={() => onSelect({ kind: "all" })}
         >
-          <span className="twisty" />
+          <NavIcon icon={Newspaper} />
           <span className="label">All items</span>
         </button>
 
@@ -118,7 +130,7 @@ export function Sidebar({
           className={`nav-item ${isSelected({ kind: "starred" }) ? "selected" : ""}`}
           onClick={() => onSelect({ kind: "starred" })}
         >
-          <span className="twisty" />
+          <NavIcon icon={Star} />
           <span className="label">Starred</span>
         </button>
       </div>
@@ -126,8 +138,13 @@ export function Sidebar({
       <div className="nav-section">
         <div className="nav-heading">
           <span>Subscriptions</span>
-          <button className="heading-action" onClick={onNewFolder} title="New folder">
-            + Folder
+          <button
+            className="heading-action"
+            onClick={onNewFolder}
+            title="New folder"
+            aria-label="New folder"
+          >
+            <FolderPlus size={15} aria-hidden="true" />
           </button>
         </div>
 
@@ -137,7 +154,7 @@ export function Sidebar({
           return (
             <div
               key={category.id}
-              className={dropTarget === category.id ? "drop-target" : ""}
+              className={`nav-folder ${dropTarget === category.id ? "drop-target" : ""}`}
               // The folder row and its feeds all accept a drop, meaning that folder.
               {...folderDropProps(category.id, onMoveFeed, setDropTarget)}
             >
@@ -161,12 +178,17 @@ export function Sidebar({
                   title={isCollapsed ? "Expand" : "Collapse"}
                   onClick={() => toggle(category.id)}
                 >
-                  {isCollapsed ? "▶" : "▼"}
+                  {isCollapsed ? (
+                    <ChevronRight size={14} aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={14} aria-hidden="true" />
+                  )}
                 </button>
                 <button
                   className="nav-label"
                   onClick={() => onSelect({ kind: "category", id: category.id })}
                 >
+                  <NavIcon icon={isCollapsed ? Folder : FolderOpen} />
                   <span className="label">{category.title}</span>
                   {category.unread > 0 && <span className="count">{category.unread}</span>}
                 </button>
@@ -250,4 +272,8 @@ export function Sidebar({
       )}
     </nav>
   );
+}
+
+function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="nav-icon" size={16} aria-hidden="true" />;
 }

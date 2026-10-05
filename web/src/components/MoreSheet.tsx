@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Download, ListTree, LogOut, Palette, Plus, type LucideIcon } from "lucide-react";
 
 interface Props {
   displayName?: string;
@@ -26,7 +27,7 @@ export function MoreSheet({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  const item = (label: string, action: () => void, danger = false) => (
+  const item = (label: string, action: () => void, Icon: LucideIcon, danger = false) => (
     <button
       className={`sheet-item ${danger ? "danger" : ""}`}
       onClick={() => {
@@ -34,6 +35,7 @@ export function MoreSheet({
         onClose();
       }}
     >
+      <Icon size={20} aria-hidden="true" />
       {label}
     </button>
   );
@@ -49,11 +51,11 @@ export function MoreSheet({
         <div className="sheet-handle" aria-hidden="true" />
         {displayName && <div className="sheet-account">Signed in as {displayName}</div>}
 
-        {item("Subscribe to a feed", onSubscribe)}
-        {item("Subscriptions", onSubscriptions)}
-        {item("Reading: font and size", onReading)}
-        {item("Export OPML", () => window.open("/api/export", "_blank"))}
-        {item("Sign out", onSignOut, true)}
+        {item("Subscribe to a feed", onSubscribe, Plus)}
+        {item("Subscriptions", onSubscriptions, ListTree)}
+        {item("Appearance", onReading, Palette)}
+        {item("Export OPML", () => window.open("/api/export", "_blank"), Download)}
+        {item("Sign out", onSignOut, LogOut, true)}
       </div>
     </div>
   );

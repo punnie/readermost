@@ -1,24 +1,29 @@
 /**
- * How articles and discussions are typeset: typeface, size and spacing.
+ * How the app looks: the typeface, size and spacing of articles and
+ * discussions, and the accent colour the chrome is drawn in.
  *
  * The server keeps the choice so it follows the reader between devices; this
  * module turns it into attributes on <html>, and styles.css does the rest. A
  * copy is also kept in localStorage purely so a reload paints in the right
- * typeface straight away rather than flashing the default first.
+ * typeface and colour straight away rather than flashing the default first.
  */
 
 export const FONT_FAMILIES = ["sans", "serif", "mono", "opendyslexic"] as const;
 export const TEXT_SIZES = ["small", "medium", "large", "xlarge"] as const;
 export const DENSITIES = ["compact", "comfortable", "spacious"] as const;
+/** Named rather than free-form, so each has a tuned light and dark variant. */
+export const ACCENTS = ["blue", "teal", "green", "orange", "rose", "purple", "graphite"] as const;
 
 export type FontFamily = (typeof FONT_FAMILIES)[number];
 export type TextSize = (typeof TEXT_SIZES)[number];
 export type Density = (typeof DENSITIES)[number];
+export type Accent = (typeof ACCENTS)[number];
 
 export interface ReadingPrefs {
   font_family: FontFamily;
   text_size: TextSize;
   density: Density;
+  accent: Accent;
 }
 
 /** Matches the server's defaults, and the look the reader had before. */
@@ -26,6 +31,7 @@ export const DEFAULT_READING_PREFS: ReadingPrefs = {
   font_family: "sans",
   text_size: "medium",
   density: "comfortable",
+  accent: "blue",
 };
 
 export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
@@ -48,6 +54,16 @@ export const DENSITY_LABELS: Record<Density, string> = {
   spacious: "Spacious",
 };
 
+export const ACCENT_LABELS: Record<Accent, string> = {
+  blue: "Blue",
+  teal: "Teal",
+  green: "Green",
+  orange: "Orange",
+  rose: "Rose",
+  purple: "Purple",
+  graphite: "Graphite",
+};
+
 function oneOf<T extends string>(options: readonly T[], value: unknown): value is T {
   return typeof value === "string" && (options as readonly string[]).includes(value);
 }
@@ -68,6 +84,7 @@ export function parseReadingPrefs(value: unknown): ReadingPrefs {
       : DEFAULT_READING_PREFS.font_family,
     text_size: oneOf(TEXT_SIZES, raw.text_size) ? raw.text_size : DEFAULT_READING_PREFS.text_size,
     density: oneOf(DENSITIES, raw.density) ? raw.density : DEFAULT_READING_PREFS.density,
+    accent: oneOf(ACCENTS, raw.accent) ? raw.accent : DEFAULT_READING_PREFS.accent,
   };
 }
 
@@ -89,6 +106,12 @@ export function applyReadingPrefs(prefs: ReadingPrefs): void {
   root.dataset.font = prefs.font_family;
   root.dataset.textSize = prefs.text_size;
   root.dataset.density = prefs.density;
+  root.dataset.accent = prefs.accent;
+
+  // The browser's own chrome — the PWA title bar, a phone's status bar —
+  // follows the accent too. Read back from CSS so light and dark both match.
+  const accent = getComputedStyle(root).getPropertyValue("--accent").trim();
+  if (accent) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", accent);
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));

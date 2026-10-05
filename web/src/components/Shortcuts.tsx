@@ -14,6 +14,7 @@ const BINDINGS: [string, string][] = [
   ["v", "Open original in a new tab"],
   ["r", "Refresh all feeds"],
   ["A", "Mark everything read"],
+  ["/", "Search"],
   ["g then u", "Go to unread"],
   ["g then a", "Go to all items"],
   ["?", "This list"],

@@ -6,7 +6,7 @@ buildNpmPackage {
 
   src = lib.cleanSource ../web;
 
-  npmDepsHash = "sha256-NQXe1gqNpMY/lCDeiLBwfocZAJWYqFe1QFte1JpLd7s=";
+  npmDepsHash = "sha256-RMVwmh54GuJBTPWa1pJ49p3nfN1OUjbv54wDGlinLiM=";
 
   # Vite writes to dist/; there is nothing to "install" in the npm sense.
   dontNpmInstall = true;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { X } from "lucide-react";
 
 import { api } from "../api";
 import { fold, matchFeeds, mayNeedAccents } from "../search";
@@ -100,7 +101,7 @@ export function SearchView({
                 inputRef.current?.focus();
               }}
             >
-              ×
+              <X size={16} aria-hidden="true" />
             </button>
           )}
         </div>

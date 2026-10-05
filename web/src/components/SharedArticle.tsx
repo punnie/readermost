@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ExternalLink, Star } from "lucide-react";
 
 import { api } from "../api";
 import { Avatar } from "./Avatar";
@@ -83,7 +84,7 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
             Shared by <strong>{name}</strong> {timeAgo(item.created_at)}
           </span>
           <a href={item.permalink} target="_blank" rel="noreferrer noopener">
-            Mattermost ↗
+            Mattermost <ExternalLink size={11} aria-hidden="true" />
           </a>
         </div>
 
@@ -105,7 +106,8 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
           )}
           {data?.entry_id && (
             <button className="btn" onClick={() => void api.toggleBookmark(data.entry_id!)}>
-              ☆ Star
+              <Star size={13} aria-hidden="true" />
+              Star
             </button>
           )}
         </div>

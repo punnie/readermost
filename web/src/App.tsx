@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIsRestoring, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
+import { Keyboard, ListTree, LogOut, Palette, Plus, RefreshCw, Rss, Search } from "lucide-react";
 
 import { ApiError, api } from "./api";
 import {
@@ -17,6 +18,7 @@ import {
   useToggleStar,
   useTree,
 } from "./hooks";
+import { Avatar } from "./components/Avatar";
 import { EntryList } from "./components/EntryList";
 import { EntryView } from "./components/EntryView";
 import { SharedList } from "./components/SharedList";
@@ -965,54 +967,82 @@ export function App() {
         </div>
       )}
 
+      {/*
+        Grouped by what each control is for: getting new things in (coloured,
+        since they are why you opened the app), finding things, looking after
+        the app, and the account.
+      */}
       <header className="topbar">
-        <h1>Readermost</h1>
-        <button
-          className="btn"
-          onClick={() => void refresh({ kind: "all" })}
-          disabled={refreshingEverything || !online}
-        >
-          {refreshingEverything ? "Refreshing…" : "Refresh"}
+        <h1 className="brand">
+          <Rss size={17} strokeWidth={2.5} aria-hidden="true" />
+          Readermost
+        </h1>
+
+        <div className="btn-group" role="group" aria-label="Get new articles">
+          <button
+            className="btn btn-primary"
+            onClick={() => void refresh({ kind: "all" })}
+            disabled={refreshingEverything || !online}
+            title={online ? "Fetch new articles in every feed" : "Needs a connection"}
+          >
+            <RefreshCw
+              className={refreshingEverything ? "spinning" : ""}
+              size={14}
+              aria-hidden="true"
+            />
+            {refreshingEverything ? "Refreshing…" : "Refresh"}
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
+            <Plus size={15} aria-hidden="true" />
+            Subscribe
+          </button>
+        </div>
+
+        <button className="search-trigger" onClick={openSearch} title="Search (/)">
+          <Search size={14} aria-hidden="true" />
+          <span className="placeholder">Search feeds and articles</span>
+          <kbd>/</kbd>
         </button>
-        <button className="btn" onClick={openSearch} title="Search (/)">
-          ⌕ Search
-        </button>
-        <button className="btn" onClick={() => setShowAdd(true)}>
-          + Subscribe
-        </button>
-        <button className="btn" onClick={() => setShowSettings(true)}>
-          Subscriptions
-        </button>
-        <button
-          className="btn"
-          onClick={() => setShowReading(true)}
-          title="Font, text size and density"
-        >
-          Aa Reading
-        </button>
+
         <span className="spacer" />
-        <button className="btn-link" onClick={() => setShowShortcuts(true)}>
-          Shortcuts
-        </button>
-        <span className="who">{me.data?.display_name}</span>
-        <button
-          className="btn"
-          onClick={() => {
-            void api
-              .logout()
-              .catch(() => {})
-              // Clear before reloading: the cache outlives the session cookie,
-              // and the next person on this browser must not inherit it.
-              .finally(async () => {
-                queryClient.clear();
-                await clearPersistedCache();
-                forgetReadingPrefs();
-                window.location.href = "/";
-              });
-          }}
-        >
-          Sign out
-        </button>
+
+        <div className="btn-group" role="group" aria-label="Settings">
+          <button className="btn" onClick={() => setShowSettings(true)}>
+            <ListTree size={14} aria-hidden="true" />
+            Subscriptions
+          </button>
+          <button
+            className="btn"
+            onClick={() => setShowReading(true)}
+            title="Accent colour, font, text size and density"
+          >
+            <Palette size={14} aria-hidden="true" />
+            Appearance
+          </button>
+          <button
+            className="btn icon-only"
+            onClick={() => setShowShortcuts(true)}
+            title="Keyboard shortcuts (?)"
+            aria-label="Keyboard shortcuts"
+          >
+            <Keyboard size={15} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="account">
+          {me.data && (
+            <Avatar userId={me.data.user_id} name={me.data.display_name} size={24} />
+          )}
+          <span className="who">{me.data?.display_name}</span>
+          <button
+            className="btn btn-quiet icon-only"
+            onClick={signOut}
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={15} aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <Sidebar

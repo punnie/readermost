@@ -42,7 +42,7 @@ export function useReadingPrefs(enabled: boolean) {
   return prefs;
 }
 
-/** Saves typography choices, showing them at once rather than after the round trip. */
+/** Saves typography and colour choices, showing them at once rather than after the round trip. */
 export function useSetReadingPrefs() {
   const queryClient = useQueryClient();
   const key = ["reading-prefs"];

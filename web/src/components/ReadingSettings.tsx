@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { useReadingPrefs, useSetReadingPrefs } from "../hooks";
 import {
+  ACCENTS,
+  ACCENT_LABELS,
   DEFAULT_READING_PREFS,
   DENSITIES,
   DENSITY_LABELS,
@@ -25,6 +27,9 @@ interface ChoiceProps<T extends string> {
   onChange: (value: T) => void;
   /** Lets a font option be shown in its own typeface. */
   optionAttrs?: (option: T) => Record<string, string>;
+  /** Drawn before an option's label, such as a colour swatch. */
+  optionPrefix?: (option: T) => ReactNode;
+  className?: string;
 }
 
 /** One row of mutually exclusive options; real radios, so arrow keys work. */
@@ -36,11 +41,13 @@ function Choice<T extends string>({
   value,
   onChange,
   optionAttrs,
+  optionPrefix,
+  className = "",
 }: ChoiceProps<T>) {
   return (
     <fieldset className="reading-choice">
       <legend>{legend}</legend>
-      <div className="segmented">
+      <div className={`segmented ${className}`}>
         {options.map((option) => (
           <label
             key={option}
@@ -54,6 +61,7 @@ function Choice<T extends string>({
               checked={option === value}
               onChange={() => onChange(option)}
             />
+            {optionPrefix?.(option)}
             {labels[option]}
           </label>
         ))}
@@ -63,10 +71,11 @@ function Choice<T extends string>({
 }
 
 /**
- * Typeface, size and spacing for articles and discussions.
+ * The accent colour of the app, and the typeface, size and spacing of articles
+ * and discussions.
  *
- * Every choice takes effect as it is made — the article behind the dialog is
- * the preview — and is saved to the account, so other devices follow.
+ * Every choice takes effect as it is made — the app behind the dialog is the
+ * preview — and is saved to the account, so other devices follow.
  */
 export function ReadingSettings({ onClose }: Props) {
   const prefs = useReadingPrefs(true);
@@ -96,8 +105,19 @@ export function ReadingSettings({ onClose }: Props) {
         aria-modal="true"
         aria-labelledby="reading-title"
       >
-        <h3 id="reading-title">Reading</h3>
+        <h3 id="reading-title">Appearance</h3>
 
+        <Choice
+          legend="Accent colour"
+          name="accent"
+          options={ACCENTS}
+          labels={ACCENT_LABELS}
+          value={current.accent}
+          onChange={(accent) => change({ accent })}
+          optionAttrs={(accent) => ({ "data-accent-sample": accent })}
+          optionPrefix={() => <span className="swatch" aria-hidden="true" />}
+          className="swatches"
+        />
         <Choice
           legend="Font"
           name="font_family"
@@ -133,7 +153,8 @@ export function ReadingSettings({ onClose }: Props) {
         </div>
 
         <p className="subs-hint">
-          Applies to articles and discussions, and follows you to your other devices.
+          The font, size and density apply to articles and discussions. Everything here
+          follows you to your other devices.
         </p>
 
         {save.isError && (

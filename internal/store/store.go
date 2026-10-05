@@ -109,17 +109,46 @@ CREATE TABLE IF NOT EXISTS river_reads (
 
 CREATE INDEX IF NOT EXISTS river_reads_user_idx ON river_reads(user_id);
 
--- How a user likes articles and discussions set: typeface, size and spacing.
--- It lives here rather than in the browser so it follows them between devices.
--- A missing row means the defaults.
+-- How a user likes the app to look: the typeface, size and spacing of articles
+-- and discussions, and the accent colour of the chrome. It lives here rather
+-- than in the browser so it follows them between devices. A missing row means
+-- the defaults.
 CREATE TABLE IF NOT EXISTS reading_prefs (
   user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   font_family TEXT    NOT NULL,
   text_size   TEXT    NOT NULL,
   density     TEXT    NOT NULL,
+  accent      TEXT    NOT NULL DEFAULT 'blue',
   updated_at  INTEGER NOT NULL
 );
 `
+
+// columnsAdded are columns introduced after their table first shipped. CREATE
+// TABLE IF NOT EXISTS leaves an existing table alone, so a database created
+// before a column existed is given it here.
+var columnsAdded = []struct{ table, column, definition string }{
+	{"reading_prefs", "accent", `TEXT NOT NULL DEFAULT 'blue'`},
+}
+
+func addMissingColumns(db *sql.DB) error {
+	for _, add := range columnsAdded {
+		var count int
+		err := db.QueryRow(
+			`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, add.table, add.column).
+			Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			continue
+		}
+		if _, err := db.Exec(
+			`ALTER TABLE ` + add.table + ` ADD COLUMN ` + add.column + ` ` + add.definition); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Open connects to the SQLite database at path and applies the schema.
 func Open(path string) (*Store, error) {
@@ -147,6 +176,10 @@ func Open(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("store: apply schema: %w", err)
+	}
+	if err := addMissingColumns(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("store: add columns: %w", err)
 	}
 	return &Store{db: db}, nil
 }

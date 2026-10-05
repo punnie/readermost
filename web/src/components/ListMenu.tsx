@@ -1,3 +1,5 @@
+import { Ellipsis } from "lucide-react";
+
 import { Menu, MenuHeading, MenuItem, MenuSeparator } from "./Menu";
 import { SORT_LABELS, type SortOrder } from "../sort";
 import {
@@ -62,7 +64,7 @@ export function ListMenu({
   const canDeleteFolder = isFolder && otherFolders.length > 0;
 
   return (
-    <Menu label="⋯" title="Options">
+    <Menu label={<Ellipsis size={16} aria-hidden="true" />} title="Options">
       {(close) => (
         <>
           {extra?.(close)}

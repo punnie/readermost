@@ -15,6 +15,7 @@ var (
 	fontFamilies = []string{"sans", "serif", "mono", "opendyslexic"}
 	textSizes    = []string{"small", "medium", "large", "xlarge"}
 	densities    = []string{"compact", "comfortable", "spacious"}
+	accents      = []string{"blue", "teal", "green", "orange", "rose", "purple", "graphite"}
 )
 
 // readingPrefs is the wire form of store.ReadingPrefs.
@@ -22,6 +23,7 @@ type readingPrefs struct {
 	FontFamily string `json:"font_family"`
 	TextSize   string `json:"text_size"`
 	Density    string `json:"density"`
+	Accent     string `json:"accent"`
 }
 
 func (p readingPrefs) validate() error {
@@ -32,6 +34,8 @@ func (p readingPrefs) validate() error {
 		return errBadRequest("unknown text size")
 	case !slices.Contains(densities, p.Density):
 		return errBadRequest("unknown density")
+	case !slices.Contains(accents, p.Accent):
+		return errBadRequest("unknown accent colour")
 	}
 	return nil
 }
@@ -45,7 +49,7 @@ func (s *Server) handleGetPrefs(w http.ResponseWriter, r *http.Request, identity
 	return nil
 }
 
-// handlePutPrefs saves the whole set at once; there are three fields and the
+// handlePutPrefs saves the whole set at once; there are four fields and the
 // client always knows all of them.
 func (s *Server) handlePutPrefs(w http.ResponseWriter, r *http.Request, identity *auth.Identity) error {
 	var prefs readingPrefs

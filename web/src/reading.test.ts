@@ -4,7 +4,12 @@ import { DEFAULT_READING_PREFS, parseReadingPrefs } from "./reading";
 
 describe("parseReadingPrefs", () => {
   it("keeps a valid set as it is", () => {
-    const prefs = { font_family: "opendyslexic", text_size: "xlarge", density: "spacious" };
+    const prefs = {
+      font_family: "opendyslexic",
+      text_size: "xlarge",
+      density: "spacious",
+      accent: "teal",
+    };
     expect(parseReadingPrefs(prefs)).toEqual(prefs);
   });
 
@@ -18,11 +23,12 @@ describe("parseReadingPrefs", () => {
   // reader the choices that are still good.
   it("replaces only the fields it does not recognise", () => {
     expect(
-      parseReadingPrefs({ font_family: "papyrus", text_size: "large", density: 3 }),
+      parseReadingPrefs({ font_family: "papyrus", text_size: "large", density: 3, accent: "#f0f" }),
     ).toEqual({
       font_family: DEFAULT_READING_PREFS.font_family,
       text_size: "large",
       density: DEFAULT_READING_PREFS.density,
+      accent: DEFAULT_READING_PREFS.accent,
     });
   });
 });

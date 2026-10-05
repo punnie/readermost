@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { ExternalLink, Star } from "lucide-react";
 
 import { Avatar } from "./Avatar";
 import { formatDate, formatDateTime } from "../format";
@@ -83,12 +84,13 @@ export function EntryView({
               disabled={discussionLoading}
               onClick={() => onShare(entry)}
             >
-              Share to Mattermost
+              Share
             </button>
           )}
 
           <button className="btn" onClick={() => onToggleStar(entry.id)}>
-            {entry.starred ? "★ Starred" : "☆ Star"}
+            <Star size={13} fill={entry.starred ? "currentColor" : "none"} aria-hidden="true" />
+            {entry.starred ? "Starred" : "Star"}
           </button>
           <button className="btn" onClick={() => onToggleRead(entry)}>
             Mark {entry.status === "read" ? "unread" : "read"}
@@ -139,7 +141,7 @@ export function EntryView({
                   target="_blank"
                   rel="noreferrer noopener"
                 >
-                  Mattermost ↗
+                  Mattermost <ExternalLink size={11} aria-hidden="true" />
                 </a>
               </div>
 

@@ -11,11 +11,26 @@
     --text: #1b1b19;
     --text-muted: #6a6a66;
     --text-faint: #96968f;
-    --accent: #1a5fb4;
-    --accent-text: #ffffff;
     --unread: #1b1b19;
     --star: #e5a50a;
     --danger: #c01c28;
+
+    /* Accent colours a reader can choose from (reading.ts, ACCENTS). Each is
+       dark enough to read as text on --bg, since titles are drawn in it. */
+    --accent-blue: #1a5fb4;
+    --accent-teal: #0f766e;
+    --accent-green: #2b7a3d;
+    --accent-orange: #c2410c;
+    --accent-rose: #be185d;
+    --accent-purple: #6d3fc0;
+    --accent-graphite: #4b5563;
+
+    --accent: var(--accent-blue);
+    --accent-text: #ffffff;
+    /* Washes of the accent for selection and badges. Mixed against --bg rather
+       than transparent so they look the same over any surface. */
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--bg));
+    --bg-selected: color-mix(in srgb, var(--accent) 14%, var(--bg));
 
     --sidebar-width: 250px;
     --list-width: 380px;
@@ -43,22 +58,58 @@
         --bg-sunken: #141413;
         --bg-raised: #242422;
         --bg-hover: #2e2e2b;
-        --bg-selected: #1e3a5f;
         --border: #35352f;
         --border-strong: #4a4a43;
         --text: #e8e8e3;
         --text-muted: #a3a39c;
         --text-faint: #75756e;
-        --accent: #78aeed;
-        --accent-text: #11223a;
         --unread: #f5f5f0;
         --star: #f6d32d;
         --danger: #ff7b7b;
+
+        --accent-blue: #78aeed;
+        --accent-teal: #4fd1c5;
+        --accent-green: #7bd389;
+        --accent-orange: #fb9a5a;
+        --accent-rose: #f58bb8;
+        --accent-purple: #b99af5;
+        --accent-graphite: #aab3c0;
+
+        --accent-text: #141413;
+        --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--bg));
+        --bg-selected: color-mix(in srgb, var(--accent) 20%, var(--bg));
     }
+}
+
+:root[data-accent="teal"] {
+    --accent: var(--accent-teal);
+}
+:root[data-accent="green"] {
+    --accent: var(--accent-green);
+}
+:root[data-accent="orange"] {
+    --accent: var(--accent-orange);
+}
+:root[data-accent="rose"] {
+    --accent: var(--accent-rose);
+}
+:root[data-accent="purple"] {
+    --accent: var(--accent-purple);
+}
+:root[data-accent="graphite"] {
+    --accent: var(--accent-graphite);
 }
 
 * {
     box-sizing: border-box;
+    /* No scrollbars anywhere: every pane still scrolls by wheel, trackpad,
+       touch and keyboard, but the gutters and tracks were visual noise between
+       panes that are already divided by borders. */
+    scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
 }
 
 html,
@@ -100,27 +151,104 @@ a {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     padding: 0 12px;
-    height: 44px;
+    height: 48px;
     background: var(--bg-sunken);
+    border-top: 3px solid var(--accent);
     border-bottom: 1px solid var(--border);
 }
 
-.topbar h1 {
+/* As wide as the sidebar below it, less the bar's padding and gap, so the first
+   group of buttons starts over the list column. */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: calc(var(--sidebar-width) - 12px - 14px);
+    flex-shrink: 0;
+    margin: 0;
     font-size: 15px;
     font-weight: 700;
-    margin: 0;
     letter-spacing: -0.01em;
+    color: var(--accent);
 }
 
 .topbar .spacer {
     flex: 1;
 }
 
-.topbar .who {
+/* Looks like a field, because it is one waiting to happen: clicking it, or
+   pressing the key it shows, opens search. */
+.search-trigger {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 260px;
+    min-width: 0;
+    padding: 4px 6px 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text-faint);
+    font-size: 12px;
+    text-align: left;
+    cursor: text;
+}
+
+.search-trigger:hover {
+    border-color: var(--border-strong);
+    color: var(--text-muted);
+}
+
+.search-trigger .placeholder {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-trigger kbd {
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-sunken);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 16px;
+}
+
+.account {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 14px;
+    border-left: 1px solid var(--border);
+    align-self: stretch;
+}
+
+.account .who {
     color: var(--text-muted);
     font-size: 12px;
+    white-space: nowrap;
+}
+
+/* A narrow desktop window: the bar gives up its words before its controls. */
+@media (max-width: 1120px) {
+    .search-trigger {
+        width: auto;
+    }
+
+    .search-trigger .placeholder,
+    .account .who {
+        display: none;
+    }
+}
+
+@media (max-width: 1000px) {
+    .brand {
+        width: auto;
+    }
 }
 
 .pane {
@@ -179,10 +307,64 @@ a {
     cursor: default;
 }
 
+.btn svg {
+    flex-shrink: 0;
+}
+
+/* Just the icon: square-ish, with the label in aria-label and title. */
+.btn.icon-only {
+    padding-inline: 6px;
+}
+
 .btn-primary {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-text);
+    font-weight: 600;
+}
+
+/* Towards the text colour: darker on a light theme, lighter on a dark one. */
+.btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 86%, var(--text));
+    border-color: color-mix(in srgb, var(--accent) 86%, var(--text));
+}
+
+/* No chrome until it is pointed at. */
+.btn-quiet {
+    background: none;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+
+.btn-quiet:hover:not(:disabled) {
+    color: var(--text);
+}
+
+/* Buttons that belong together, joined into one control. */
+.btn-group {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.btn-group > .btn {
+    border-radius: 0;
+}
+
+.btn-group > .btn + .btn {
+    margin-left: -1px;
+}
+
+.btn-group > .btn:first-child {
+    border-radius: 5px 0 0 5px;
+}
+
+.btn-group > .btn:last-child {
+    border-radius: 0 5px 5px 0;
+}
+
+/* Accent on accent would hide the seam between two coloured buttons. */
+.btn-group > .btn-primary + .btn-primary {
+    border-left-color: color-mix(in srgb, var(--accent-text) 30%, var(--accent));
 }
 
 .btn-link {
@@ -209,7 +391,7 @@ a {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-faint);
+    color: var(--accent);
 }
 
 .nav-item {
@@ -232,11 +414,25 @@ a {
 
 .nav-item.selected {
     background: var(--bg-selected);
+    box-shadow: inset 3px 0 0 var(--accent);
     font-weight: 600;
 }
 
+.nav-icon {
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.nav-item.selected .nav-icon,
+.nav-item.selected .label,
+.nav-item.selected.has-unread .label {
+    color: var(--accent);
+}
+
+/* Under the folder's own icon: 12px of padding, then the 16px twisty and its
+   7px gap. */
 .nav-item.feed {
-    padding-left: 30px;
+    padding-left: 35px;
     font-size: 12.5px;
 }
 
@@ -248,22 +444,31 @@ a {
 }
 
 .nav-item .count {
+    flex-shrink: 0;
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 9px;
     color: var(--text-faint);
     font-size: 11px;
+    line-height: 17px;
+    text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
-.nav-item.has-unread .label,
-.nav-item.has-unread .count {
+.nav-item.has-unread .label {
     font-weight: 700;
     color: var(--unread);
 }
 
-.nav-item .twisty {
-    width: 12px;
-    color: var(--text-faint);
-    font-size: 9px;
-    flex-shrink: 0;
+.nav-item.has-unread .count {
+    font-weight: 700;
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.nav-item.selected.has-unread .count {
+    background: var(--accent);
+    color: var(--accent-text);
 }
 
 /* A folder row holds two buttons — the twisty and the folder itself — so the
@@ -291,20 +496,19 @@ a {
 }
 
 /* The twisty is a real button with a comfortable target; negative margins
-   keep it lined up with the 12px spacer the other rows use. */
+   keep it lined up with the 16px icons the other rows lead with. */
 button.twisty {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
-    margin: 0 -6px;
+    margin: 0 -4px;
     padding: 0;
     border: none;
     border-radius: 4px;
     background: none;
     color: var(--text-faint);
-    font-size: 9px;
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -345,6 +549,12 @@ button.twisty:hover {
 
 .entry-row.selected {
     background: var(--bg-selected);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.entry-title .star {
+    margin-right: 4px;
+    vertical-align: -1px;
 }
 
 .entry-row.read .entry-title {
@@ -396,7 +606,7 @@ button.twisty:hover {
 }
 
 .article h2 a {
-    color: var(--text);
+    color: var(--accent);
     text-decoration: none;
 }
 
@@ -443,6 +653,12 @@ button.twisty:hover {
 
 .article-actions .btn:not(:only-child) {
     min-width: 56px;
+}
+
+/* An inline-block button has no flex gap, so its icon is placed by hand. */
+.article-actions .btn svg {
+    margin-right: 5px;
+    vertical-align: -2px;
 }
 
 .article-body {
@@ -571,6 +787,7 @@ button.twisty:hover {
 .dialog h3 {
     margin: 0 0 12px;
     font-size: 15px;
+    color: var(--accent);
 }
 
 .dialog textarea,
@@ -757,7 +974,7 @@ button.twisty:hover {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-faint);
+    color: var(--accent);
 }
 
 .discussion-origin {
@@ -767,6 +984,13 @@ button.twisty:hover {
     font-size: 12px;
     color: var(--text-muted);
     padding-bottom: 10px;
+}
+
+.discussion-origin a,
+.shared-by a {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
 }
 
 .discussion-origin a {
@@ -862,19 +1086,29 @@ button.twisty:hover {
 /* ---------- sidebar actions and drag-and-drop ---------- */
 
 .heading-action {
-    background: none;
+    display: inline-flex;
+    padding: 3px;
+    margin: -3px -3px -3px 0;
     border: none;
-    color: var(--text-faint);
+    border-radius: 4px;
+    background: none;
+    color: var(--text-muted);
     cursor: pointer;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: 0 2px;
-    text-transform: uppercase;
 }
 
 .heading-action:hover {
+    background: var(--accent-soft);
     color: var(--accent);
+}
+
+/* A gap after each folder's feeds, so it is plain where one folder ends and
+   the next begins. The drawer's thumb-sized rows already space things out. */
+.nav-folder + .nav-folder {
+    margin-top: 8px;
+}
+
+.drawer .nav-folder + .nav-folder {
+    margin-top: 0;
 }
 
 /* The folder a dragged feed would land in. */
@@ -924,15 +1158,21 @@ button.twisty:hover {
 
 .list-title .name {
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
+    color: var(--accent);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .list-title .count {
-    color: var(--text-faint);
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--accent-soft);
+    color: var(--accent);
     font-size: 11px;
+    font-weight: 700;
+    line-height: 17px;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
@@ -972,7 +1212,7 @@ button.twisty:hover {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-faint);
+    color: var(--accent);
 }
 
 .menu-item {
@@ -1003,10 +1243,10 @@ button.twisty:hover {
 }
 
 .menu-check {
-    width: 10px;
+    display: inline-flex;
+    width: 13px;
     flex-shrink: 0;
     color: var(--accent);
-    font-size: 11px;
 }
 
 .menu-separator {
@@ -1036,8 +1276,6 @@ button.twisty:hover {
 
 .filter-chip .clear {
     color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1;
 }
 
 /* Shown across the top when the browser reports no network. */
@@ -1260,7 +1498,7 @@ button.twisty:hover {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-faint);
+    color: var(--accent);
 }
 
 .drop-strip-chips {
@@ -1391,6 +1629,7 @@ button.twisty:hover {
     padding: 0 4px;
     font-size: 15px;
     font-weight: 700;
+    color: var(--accent);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1462,8 +1701,7 @@ button.twisty:hover {
 
 .tab-glyph {
     position: relative;
-    font-size: 16px;
-    line-height: 1;
+    display: inline-flex;
 }
 
 .tab-label {
@@ -1473,8 +1711,8 @@ button.twisty:hover {
 
 .tab-badge {
     position: absolute;
-    top: -6px;
-    left: 10px;
+    top: -5px;
+    left: 14px;
     background: var(--accent);
     color: var(--accent-text);
     border-radius: 8px;
@@ -1548,7 +1786,7 @@ button.twisty:hover {
 .drawer .nav-item.folder button.twisty {
     width: 40px;
     height: 44px;
-    margin: 0 -14px;
+    margin: 0 -12px;
 }
 
 /* ---------- bottom sheet ---------- */
@@ -1586,7 +1824,9 @@ button.twisty:hover {
 }
 
 .sheet-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 14px;
     width: 100%;
     min-height: 48px;
     padding: 0 20px;
@@ -1600,6 +1840,15 @@ button.twisty:hover {
 
 .sheet-item:active {
     background: var(--bg-hover);
+}
+
+.sheet-item svg {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.sheet-item.danger svg {
+    color: inherit;
 }
 
 .sheet-item.danger {
@@ -1757,7 +2006,7 @@ button.twisty:hover {
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: var(--text-faint);
+    color: var(--accent);
 }
 
 .search-section h4 .count {
@@ -1888,8 +2137,9 @@ button.twisty:hover {
 
    Typeface, size and spacing for articles and discussions, chosen per reader
    and stored on the server. reading.ts sets these attributes on <html>; the
-   rules above read the variables. The chrome — lists, sidebar, buttons — stays
-   as it is: it is dense on purpose, and a long read is where the choice matters. */
+   rules above read the variables. The chrome — lists, sidebar, buttons — keeps
+   its type: it is dense on purpose, and a long read is where the choice
+   matters. Only the accent colour (data-accent, at the top) reaches it. */
 
 :root[data-font="serif"] {
     --reading-font: var(--font-serif);
@@ -1938,7 +2188,7 @@ button.twisty:hover {
     margin-bottom: 6px;
     font-size: 12px;
     font-weight: 700;
-    color: var(--text-muted);
+    color: var(--accent);
 }
 
 .segmented {
@@ -1984,6 +2234,39 @@ button.twisty:hover {
 .segmented label:has(input:focus-visible) {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+}
+
+/* Each accent option shows its own colour, whatever the current accent. */
+.swatch {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--swatch);
+    vertical-align: -1px;
+}
+
+[data-accent-sample="blue"] {
+    --swatch: var(--accent-blue);
+}
+[data-accent-sample="teal"] {
+    --swatch: var(--accent-teal);
+}
+[data-accent-sample="green"] {
+    --swatch: var(--accent-green);
+}
+[data-accent-sample="orange"] {
+    --swatch: var(--accent-orange);
+}
+[data-accent-sample="rose"] {
+    --swatch: var(--accent-rose);
+}
+[data-accent-sample="purple"] {
+    --swatch: var(--accent-purple);
+}
+[data-accent-sample="graphite"] {
+    --swatch: var(--accent-graphite);
 }
 
 /* Each font option is shown in its own face. */

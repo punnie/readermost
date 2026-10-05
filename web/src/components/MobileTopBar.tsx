@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-import { Icon } from "./Icon";
+import { ChevronLeft, Menu, Search, Share, Star } from "lucide-react";
 
 interface ListBarProps {
   title: string;
@@ -23,11 +22,11 @@ export function MobileListBar({
         aria-label="Show sources"
         onClick={onOpenDrawer}
       >
-        <span aria-hidden="true">☰</span>
+        <Menu size={22} aria-hidden="true" />
       </button>
       <h1 className="bar-title">{title}</h1>
       <button className="bar-btn" aria-label="Search" onClick={onSearch}>
-        <span aria-hidden="true">⌕</span>
+        <Search size={21} aria-hidden="true" />
       </button>
       {menu}
     </header>
@@ -59,7 +58,7 @@ export function MobileArticleBar({
         aria-label="Back to the list"
         onClick={onBack}
       >
-        <span aria-hidden="true">‹</span>
+        <ChevronLeft size={26} aria-hidden="true" />
       </button>
       <h1 className="bar-title">{subtitle}</h1>
 
@@ -69,12 +68,12 @@ export function MobileArticleBar({
           aria-label={starred ? "Remove star" : "Star this article"}
           onClick={onStar}
         >
-          <span aria-hidden="true">{starred ? "★" : "☆"}</span>
+          <Star size={21} fill={starred ? "currentColor" : "none"} aria-hidden="true" />
         </button>
       )}
       {onShare && (
         <button className="bar-btn" aria-label="Share" onClick={onShare}>
-          <Icon name="share" size={17} />
+          <Share size={20} aria-hidden="true" />
         </button>
       )}
       {menu}

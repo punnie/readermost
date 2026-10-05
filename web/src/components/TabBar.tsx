@@ -1,3 +1,5 @@
+import { Ellipsis, Inbox, Newspaper, Star, Users, type LucideIcon } from "lucide-react";
+
 import type { Selection } from "../types";
 
 interface Props {
@@ -12,14 +14,15 @@ interface Props {
 interface Tab {
   kind: Selection["kind"];
   label: string;
-  glyph: string;
+  icon: LucideIcon;
 }
 
+/** The same icons as the desktop sidebar, so the two read as one app. */
 const TABS: Tab[] = [
-  { kind: "all", label: "All", glyph: "≣" },
-  { kind: "unread", label: "Unread", glyph: "●" },
-  { kind: "starred", label: "Starred", glyph: "★" },
-  { kind: "shared", label: "Shared", glyph: "◆" },
+  { kind: "all", label: "All", icon: Newspaper },
+  { kind: "unread", label: "Unread", icon: Inbox },
+  { kind: "starred", label: "Starred", icon: Star },
+  { kind: "shared", label: "Shared", icon: Users },
 ];
 
 /** The phone's primary navigation. */
@@ -39,29 +42,29 @@ export function TabBar({
 
   return (
     <nav className="tabbar" aria-label="Views">
-      {TABS.map((tab) => {
-        const badge = badgeFor(tab.kind);
-        const active = !moreOpen && selection.kind === tab.kind;
+      {TABS.map(({ kind, label, icon: Icon }) => {
+        const badge = badgeFor(kind);
+        const active = !moreOpen && selection.kind === kind;
 
         return (
           <button
-            key={tab.kind}
+            key={kind}
             className={`tab ${active ? "active" : ""}`}
             aria-current={active ? "page" : undefined}
-            onClick={() => onSelect({ kind: tab.kind } as Selection)}
+            onClick={() => onSelect({ kind } as Selection)}
           >
             <span className="tab-glyph" aria-hidden="true">
-              {tab.glyph}
+              <Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
               {badge > 0 && <span className="tab-badge">{badge > 99 ? "99+" : badge}</span>}
             </span>
-            <span className="tab-label">{tab.label}</span>
+            <span className="tab-label">{label}</span>
           </button>
         );
       })}
 
       <button className={`tab ${moreOpen ? "active" : ""}`} onClick={onMore}>
         <span className="tab-glyph" aria-hidden="true">
-          ⋯
+          <Ellipsis size={22} strokeWidth={moreOpen ? 2.25 : 1.75} />
         </span>
         <span className="tab-label">More</span>
       </button>

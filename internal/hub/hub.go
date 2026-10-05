@@ -32,8 +32,8 @@ const (
 	EventEdited  = "post_edited"
 	EventDeleted = "post_deleted"
 
-	// EventPrefs tells a user's other tabs and devices that their reading
-	// preferences changed. It is Readermost's own, not Mattermost's.
+	// EventPrefs tells a user's other tabs and devices that their reading or
+	// appearance preferences changed. It is Readermost's own, not Mattermost's.
 	EventPrefs = "prefs_changed"
 )
 

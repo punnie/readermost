@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Check } from "lucide-react";
 
 /**
  * Close on a click outside ref, and on Escape — captured, so Escape closes the
@@ -129,7 +130,7 @@ export function MenuItem({
       title={title}
       onClick={onClick}
     >
-      <span className="menu-check">{checked ? "✓" : ""}</span>
+      <span className="menu-check">{checked && <Check size={13} aria-hidden="true" />}</span>
       <span>{children}</span>
     </button>
   );

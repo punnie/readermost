@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight, Folder, GripVertical, Pencil, Trash2 } from "lucide-react";
 
 import { api } from "../api";
 import {
@@ -13,7 +14,6 @@ import { useCollapsedFolders } from "../folders";
 import { useMoveFeed } from "../hooks";
 import { DropStrip } from "./DropStrip";
 import { FeedIcon } from "./FeedIcon";
-import { Icon } from "./Icon";
 import type { Tree } from "../types";
 
 interface Props {
@@ -145,9 +145,13 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                     title={isCollapsed ? "Expand" : "Collapse"}
                     onClick={() => toggle(category.id)}
                   >
-                    {isCollapsed ? "▶" : "▼"}
+                    {isCollapsed ? (
+                      <ChevronRight size={14} aria-hidden="true" />
+                    ) : (
+                      <ChevronDown size={14} aria-hidden="true" />
+                    )}
                   </button>
-                  <Icon name="folder" />
+                  <Folder size={15} aria-hidden="true" />
                   <button className="name" onClick={() => toggle(category.id)}>
                     {category.title}
                   </button>
@@ -163,7 +167,7 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                       }
                     }}
                   >
-                    <Icon name="pencil" />
+                    <Pencil size={15} aria-hidden="true" />
                   </button>
                   <button
                     className="icon-btn danger"
@@ -171,7 +175,7 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                     title="Delete folder"
                     onClick={() => onDeleteFolder(category.id)}
                   >
-                    <Icon name="trash" />
+                    <Trash2 size={15} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -186,7 +190,7 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                     {...feedDragProps(feed.id, category.id, "subscriptions")}
                   >
                     <span className="grip" title="Drag to another folder">
-                      <Icon name="grip" size={14} />
+                      <GripVertical size={15} aria-hidden="true" />
                     </span>
                     <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
                     <span className="name" title={feed.error || feed.feed_url}>
@@ -207,7 +211,7 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                         if (title?.trim()) renameFeed.mutate({ id: feed.id, title: title.trim() });
                       }}
                     >
-                      <Icon name="pencil" />
+                      <Pencil size={15} aria-hidden="true" />
                     </button>
                     <button
                       className="icon-btn danger"
@@ -219,7 +223,7 @@ export function Settings({ tree, onClose, onDeleteFolder }: Props) {
                         }
                       }}
                     >
-                      <Icon name="trash" />
+                      <Trash2 size={15} aria-hidden="true" />
                     </button>
                   </div>
                 ))}

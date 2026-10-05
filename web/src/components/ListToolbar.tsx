@@ -1,3 +1,5 @@
+import { CheckCheck, RefreshCw, X } from "lucide-react";
+
 import { ListMenu } from "./ListMenu";
 import type { SortOrder } from "../sort";
 import {
@@ -91,7 +93,7 @@ export function ListToolbar({
           ]
             .filter(Boolean)
             .join(" · ")}
-          <span className="clear">×</span>
+          <X className="clear" size={12} aria-hidden="true" />
         </button>
       )}
 
@@ -101,12 +103,14 @@ export function ListToolbar({
         disabled={!online}
         title={online ? "Mark everything here as read" : "Needs a connection"}
       >
+        <CheckCheck size={14} aria-hidden="true" />
         Mark all read
       </button>
 
       {!isRiver && (
         <button
-          className="btn"
+          className="btn icon-only"
+          aria-label="Refresh"
           onClick={onRefresh}
           disabled={!online || isRefreshing}
           title={
@@ -117,9 +121,11 @@ export function ListToolbar({
                 : "Needs a connection"
           }
         >
-          <span className={isRefreshing ? "spinning" : ""} aria-hidden="true">
-            ↻
-          </span>
+          <RefreshCw
+            className={isRefreshing ? "spinning" : ""}
+            size={14}
+            aria-hidden="true"
+          />
         </button>
       )}
 
