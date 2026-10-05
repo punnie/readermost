@@ -266,6 +266,54 @@ a {
     flex-shrink: 0;
 }
 
+/* A folder row holds two buttons — the twisty and the folder itself — so the
+   row is a div and the buttons stretch to fill it. */
+.nav-item.folder {
+    padding-top: 0;
+    padding-bottom: 0;
+    cursor: default;
+}
+
+.nav-item.folder .nav-label {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* The twisty is a real button with a comfortable target; negative margins
+   keep it lined up with the 12px spacer the other rows use. */
+button.twisty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: 0 -6px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--text-faint);
+    font-size: 9px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+button.twisty:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
 .favicon {
     width: 14px;
     height: 14px;
@@ -542,6 +590,40 @@ a {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 14px;
+}
+
+.dialog-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.dialog select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.btn-danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #ffffff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 85%, black);
 }
 
 .empty,
@@ -877,6 +959,13 @@ a {
     box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
 }
 
+/* A right-click menu sits at the pointer rather than under a button. */
+.menu-items.context-menu {
+    position: fixed;
+    right: auto;
+    z-index: 60;
+}
+
 .menu-heading {
     padding: 5px 10px 3px;
     font-size: 10px;
@@ -964,8 +1053,13 @@ a {
 
 /* ---------- subscriptions dialog ---------- */
 
+/* The dialog is a workspace: it takes the height of the window, and the
+   folder list takes whatever the header and footer leave. */
 .dialog.subscriptions {
     width: min(640px, 100%);
+    max-height: calc(100dvh - 32px);
+    display: flex;
+    flex-direction: column;
 }
 
 .subs-header {
@@ -993,9 +1087,20 @@ a {
 }
 
 .subs-list {
-    max-height: 52vh;
+    flex: 1 1 auto;
+    min-height: 160px;
     overflow-y: auto;
     margin-bottom: 16px;
+}
+
+.subs-folder.collapsed {
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+}
+
+.subs-folder.collapsed .subs-folder-head {
+    border-bottom-color: transparent;
+    margin-bottom: 0;
 }
 
 .subs-folder {
@@ -1022,9 +1127,23 @@ a {
 }
 
 .subs-folder-head .name {
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
     font-weight: 700;
     color: var(--text);
     font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.subs-folder-head button.twisty {
+    margin: 0 -4px 0 -6px;
 }
 
 .subs-folder-head .subs-count {
@@ -1101,6 +1220,76 @@ a {
 .icon-btn.danger:hover {
     background: color-mix(in srgb, var(--danger) 16%, transparent);
     color: var(--danger);
+}
+
+/* ---------- folder strip, shown while a feed is dragged ---------- */
+
+/* Zero height and sticky, so the strip rides the top of whatever list it is
+   in without taking room from it, and showing it moves nothing. */
+.drop-strip-anchor {
+    position: sticky;
+    top: 0;
+    height: 0;
+    z-index: 5;
+}
+
+.drop-strip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    max-height: 45vh;
+    overflow-y: auto;
+    padding: 6px 8px 8px;
+    background: var(--bg-raised);
+    border-bottom: 1px solid var(--border-strong);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 14%);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.drop-strip.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.drop-strip-label {
+    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.drop-strip-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.drop-chip {
+    max-width: 100%;
+    padding: 4px 10px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.drop-chip.active {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-text);
+}
+
+.drop-chip.source {
+    opacity: 0.4;
 }
 
 .subs-section {
@@ -1354,6 +1543,12 @@ a {
 
 .drawer .nav-item.feed {
     font-size: 13.5px;
+}
+
+.drawer .nav-item.folder button.twisty {
+    width: 40px;
+    height: 44px;
+    margin: 0 -14px;
 }
 
 /* ---------- bottom sheet ---------- */

@@ -178,8 +178,11 @@ export const api = {
       body: JSON.stringify({ title }),
     }),
 
-  deleteCategory: (id: number) =>
-    request<void>(`/api/categories/${id}`, { method: "DELETE" }),
+  /** moveTo picks where the folder's feeds go; the server defaults to the oldest folder. */
+  deleteCategory: (id: number, moveTo?: number) =>
+    request<void>(`/api/categories/${id}${moveTo ? `?move_to=${moveTo}` : ""}`, {
+      method: "DELETE",
+    }),
 
   importOPML: (file: File) => {
     const form = new FormData();
