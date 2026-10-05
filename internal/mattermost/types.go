@@ -88,7 +88,10 @@ const PropsKey = "readermost"
 
 // SharePropsVersion is the schema version of SharedLink, so a future change can
 // be recognised rather than guessed at.
-const SharePropsVersion = 1
+//
+// Version 2 added Note, and moved the note after the article in the message
+// text.
+const SharePropsVersion = 2
 
 // SharedLink is the metadata Readermost attaches to a shared post.
 //
@@ -108,4 +111,7 @@ type SharedLink struct {
 	// Excerpt is a short plain-text preview so the river can show what an
 	// article is about without refetching it. Absent on older shares.
 	Excerpt string `json:"excerpt,omitempty"`
+	// Note is what the sharer wrote, kept apart from the message so its layout
+	// can change without the river having to parse it back out. Version 2 on.
+	Note string `json:"note,omitempty"`
 }

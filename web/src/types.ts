@@ -72,6 +72,8 @@ export interface SharedLink {
   author?: string;
   published_at?: string;
   excerpt?: string;
+  /** What the sharer said about the link, without the link markup. */
+  note?: string;
   from_readermost: boolean;
 }
 

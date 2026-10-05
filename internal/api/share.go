@@ -34,6 +34,8 @@ type sharedLink struct {
 	Author      string `json:"author,omitempty"`
 	PublishedAt string `json:"published_at,omitempty"`
 	Excerpt     string `json:"excerpt,omitempty"`
+	// Note is what the sharer said about the link, without the link markup.
+	Note string `json:"note,omitempty"`
 	// FromReadermost distinguishes a rich share from a bare pasted URL.
 	FromReadermost bool `json:"from_readermost"`
 }
@@ -148,6 +150,10 @@ func countNewerReplies(root *rootPost, seenReplyAt int64) int {
 // in the message text. A post with neither is chat, not a shared article.
 func linkFromPost(post *mattermost.Post) *sharedLink {
 	if shared, ok := post.SharedLink(); ok {
+		note := shared.Note
+		if shared.Version < 2 {
+			note = legacyNote(post.Message)
+		}
 		return &sharedLink{
 			URL:            shared.EntryURL,
 			Title:          shared.Title,
@@ -157,6 +163,7 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 			Author:         shared.Author,
 			PublishedAt:    shared.PublishedAt,
 			Excerpt:        shared.Excerpt,
+			Note:           note,
 			FromReadermost: true,
 		}
 	}
@@ -167,7 +174,19 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 	}
 	// Markdown and prose routinely leave punctuation glued to a URL.
 	found = strings.TrimRight(found, ".,;:!?")
-	return &sharedLink{URL: found, Title: found}
+	// Typed by hand, the whole message is the person's own words.
+	return &sharedLink{URL: found, Title: found, Note: strings.TrimSpace(post.Message)}
+}
+
+// legacyNote recovers the note from a share made before notes were kept in the
+// props. Those were composed as "note\n\n[title](url)", so everything before
+// the last blank line is what the person said.
+func legacyNote(message string) string {
+	split := strings.LastIndex(message, "\n\n")
+	if split == -1 {
+		return ""
+	}
+	return strings.TrimSpace(message[:split])
 }
 
 func (s *Server) resolveAuthors(ctx context.Context, client *mattermost.Client, items []sharedItem, ids map[string]struct{}) error {
@@ -363,7 +382,7 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 
 	post := &mattermost.Post{
 		ChannelID: s.cfg.Mattermost.SharedChannelID,
-		Message:   shareMessage(request.Message, entry),
+		Message:   shareMessage(request.Message, entry, s.riverURL()),
 	}
 
 	link := &mattermost.SharedLink{
@@ -372,6 +391,7 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		Title:    entry.Title,
 		Author:   entry.Author,
 		Excerpt:  excerptFrom(entry.Content),
+		Note:     strings.TrimSpace(request.Message),
 	}
 	if !entry.PublishedAt.IsZero() {
 		link.PublishedAt = entry.PublishedAt.UTC().Format(time.RFC3339)
@@ -419,26 +439,52 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 	return nil
 }
 
-// shareMessage composes the post body: the sharer's note, then the article as a
-// markdown link so Mattermost renders and previews it.
-func shareMessage(note string, entry *miniflux.Entry) string {
+// shareMessage composes the post body, kept compact on purpose: one line with
+// the article as a markdown link (first, so Mattermost previews it rather than
+// the backlink), its feed and a link back to the river; then the sharer's note,
+// marked so nobody mistakes it for the article's own words.
+func shareMessage(note string, entry *miniflux.Entry, riverURL string) string {
 	title := strings.TrimSpace(entry.Title)
 	if title == "" {
 		title = entry.URL
 	}
-	// Markdown link text must not contain unescaped brackets.
-	title = strings.NewReplacer("[", "(", "]", ")").Replace(title)
 
-	link := fmt.Sprintf("[%s](%s)", title, entry.URL)
-	if entry.Feed != nil && entry.Feed.Title != "" {
-		link += " — " + entry.Feed.Title
+	parts := []string{fmt.Sprintf("**[%s](%s)**", escapeLinkText(title), entry.URL)}
+	if entry.Feed != nil && strings.TrimSpace(entry.Feed.Title) != "" {
+		parts = append(parts, escapeMarkdown(strings.TrimSpace(entry.Feed.Title)))
 	}
+	if riverURL != "" {
+		parts = append(parts, fmt.Sprintf("[Readermost ↗](%s)", riverURL))
+	}
+	headline := strings.Join(parts, " · ")
 
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return link
+		return headline
 	}
-	return note + "\n\n" + link
+	return headline + "\n\n💬 " + note
+}
+
+// riverURL is the shared river in Readermost, for links back from Mattermost.
+func (s *Server) riverURL() string {
+	base := strings.TrimRight(s.cfg.PublicURL, "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/shared"
+}
+
+// escapeLinkText keeps a title from closing its markdown link early.
+func escapeLinkText(text string) string {
+	return strings.NewReplacer("[", "(", "]", ")").Replace(text)
+}
+
+// escapeMarkdown stops a feed title such as "*nix_news*" turning into emphasis.
+func escapeMarkdown(text string) string {
+	return strings.NewReplacer(
+		`\`, `\\`, "*", `\*`, "_", `\_`, "`", "\\`", "~", `\~`,
+		"[", `\[`, "]", `\]`, "#", `\#`, "|", `\|`,
+	).Replace(text)
 }
 
 type threadMessage struct {
