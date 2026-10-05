@@ -6,7 +6,16 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { App } from "./App";
 import { ApiError } from "./api";
 import { persister } from "./persist";
+import { applyReadingPrefs, readCachedReadingPrefs } from "./reading";
 import "./styles.css";
+
+// OpenDyslexic ships with the app rather than from a font CDN, so it works
+// offline and the service worker precaches it with everything else. Browsers
+// only download a face once something on the page uses it.
+import "@fontsource/opendyslexic/latin-400.css";
+import "@fontsource/opendyslexic/latin-400-italic.css";
+import "@fontsource/opendyslexic/latin-700.css";
+import "@fontsource/opendyslexic/latin-700-italic.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +33,9 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Before the first paint, so a reload does not flash the default typeface.
+applyReadingPrefs(readCachedReadingPrefs());
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -45,7 +57,8 @@ createRoot(document.getElementById("root")!).render(
                 root === "entry" ||
                 root === "shared" ||
                 root === "shared-article" ||
-                root === "thread")
+                root === "thread" ||
+                root === "reading-prefs")
             );
           },
         },

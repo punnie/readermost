@@ -31,6 +31,10 @@ const (
 	EventPosted  = "posted"
 	EventEdited  = "post_edited"
 	EventDeleted = "post_deleted"
+
+	// EventPrefs tells a user's other tabs and devices that their reading
+	// preferences changed. It is Readermost's own, not Mattermost's.
+	EventPrefs = "prefs_changed"
 )
 
 // Hub fans Mattermost events out to browser clients.
@@ -143,6 +147,10 @@ func (h *Hub) broadcast(userID int64, event Event) {
 		}
 	}
 }
+
+// Notify sends an event of Readermost's own to every open tab of one user. A
+// user with nothing open simply misses it and loads the new state next time.
+func (h *Hub) Notify(userID int64, event Event) { h.broadcast(userID, event) }
 
 // run keeps an upstream connection alive until the context is cancelled.
 func (h *Hub) run(ctx context.Context, userID int64, token string) {

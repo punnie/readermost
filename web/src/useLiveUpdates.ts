@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface LiveEvent {
-  type: "posted" | "post_edited" | "post_deleted";
+  type: "posted" | "post_edited" | "post_deleted" | "prefs_changed";
   post_id?: string;
   root_id?: string;
 }
@@ -40,6 +40,13 @@ export function useLiveUpdates(enabled: boolean) {
         try {
           event = JSON.parse(message.data as string);
         } catch {
+          return;
+        }
+
+        // Readermost's own event: the reader changed their typography on
+        // another device or tab. It says nothing about the shared channel.
+        if (event.type === "prefs_changed") {
+          void queryClient.invalidateQueries({ queryKey: ["reading-prefs"] });
           return;
         }
 

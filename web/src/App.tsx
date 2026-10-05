@@ -11,6 +11,7 @@ import {
   useSetStatus,
   useDebounced,
   useMoveFeed,
+  useReadingPrefs,
   useRefreshFeeds,
   unreadForSelection,
   useToggleStar,
@@ -26,6 +27,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
 import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
+import { ReadingSettings } from "./components/ReadingSettings";
 import { NewFolder } from "./components/NewFolder";
 import { ListToolbar } from "./components/ListToolbar";
 import { SearchView } from "./components/SearchView";
@@ -41,6 +43,7 @@ import { useSwipeNavigation } from "./swipe";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
+import { forgetReadingPrefs } from "./reading";
 import { pathFor, pathForSearch, routeFrom, sameSelection } from "./routes";
 import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
 import {
@@ -132,6 +135,7 @@ export function App() {
   // Set when subscribing from a shared item, to prefill the folder picker.
   const [subscribeTo, setSubscribeTo] = useState<{ feedUrl: string; feedTitle: string }>();
   const [showSettings, setShowSettings] = useState(false);
+  const [showReading, setShowReading] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -170,6 +174,7 @@ export function App() {
 
   // Live shared-channel updates, once we know who we are.
   useLiveUpdates(Boolean(me.data));
+  useReadingPrefs(Boolean(me.data));
 
   // The shared river is a list like any other, so App owns it and the two panes
   // read from the same data.
@@ -764,6 +769,8 @@ export function App() {
       )}
 
       {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+
+      {showReading && <ReadingSettings onClose={() => setShowReading(false)} />}
       {showNewFolder && <NewFolder onClose={() => setShowNewFolder(false)} />}
       {showShortcuts && <Shortcuts onClose={() => setShowShortcuts(false)} />}
     </>
@@ -846,6 +853,7 @@ export function App() {
       .finally(async () => {
         queryClient.clear();
         await clearPersistedCache();
+        forgetReadingPrefs();
         window.location.href = "/";
       });
   };
@@ -942,6 +950,7 @@ export function App() {
             onClose={() => setMoreOpen(false)}
             onSubscribe={() => setShowAdd(true)}
             onSubscriptions={() => setShowSettings(true)}
+            onReading={() => setShowReading(true)}
             onSignOut={signOut}
           />
         )}
@@ -977,6 +986,13 @@ export function App() {
         <button className="btn" onClick={() => setShowSettings(true)}>
           Subscriptions
         </button>
+        <button
+          className="btn"
+          onClick={() => setShowReading(true)}
+          title="Font, text size and density"
+        >
+          Aa Reading
+        </button>
         <span className="spacer" />
         <button className="btn-link" onClick={() => setShowShortcuts(true)}>
           Shortcuts
@@ -993,6 +1009,7 @@ export function App() {
               .finally(async () => {
                 queryClient.clear();
                 await clearPersistedCache();
+                forgetReadingPrefs();
                 window.location.href = "/";
               });
           }}
@@ -1134,6 +1151,8 @@ export function App() {
       )}
 
       {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+
+      {showReading && <ReadingSettings onClose={() => setShowReading(false)} />}
 
       {showNewFolder && <NewFolder onClose={() => setShowNewFolder(false)} />}
 

@@ -1,0 +1,108 @@
+/**
+ * How articles and discussions are typeset: typeface, size and spacing.
+ *
+ * The server keeps the choice so it follows the reader between devices; this
+ * module turns it into attributes on <html>, and styles.css does the rest. A
+ * copy is also kept in localStorage purely so a reload paints in the right
+ * typeface straight away rather than flashing the default first.
+ */
+
+export const FONT_FAMILIES = ["sans", "serif", "mono", "opendyslexic"] as const;
+export const TEXT_SIZES = ["small", "medium", "large", "xlarge"] as const;
+export const DENSITIES = ["compact", "comfortable", "spacious"] as const;
+
+export type FontFamily = (typeof FONT_FAMILIES)[number];
+export type TextSize = (typeof TEXT_SIZES)[number];
+export type Density = (typeof DENSITIES)[number];
+
+export interface ReadingPrefs {
+  font_family: FontFamily;
+  text_size: TextSize;
+  density: Density;
+}
+
+/** Matches the server's defaults, and the look the reader had before. */
+export const DEFAULT_READING_PREFS: ReadingPrefs = {
+  font_family: "sans",
+  text_size: "medium",
+  density: "comfortable",
+};
+
+export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
+  sans: "Sans-serif",
+  serif: "Serif",
+  mono: "Monospace",
+  opendyslexic: "OpenDyslexic",
+};
+
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+  small: "Small",
+  medium: "Medium",
+  large: "Large",
+  xlarge: "Extra large",
+};
+
+export const DENSITY_LABELS: Record<Density, string> = {
+  compact: "Compact",
+  comfortable: "Comfortable",
+  spacious: "Spacious",
+};
+
+function oneOf<T extends string>(options: readonly T[], value: unknown): value is T {
+  return typeof value === "string" && (options as readonly string[]).includes(value);
+}
+
+/**
+ * Reads prefs from anywhere untrusted — a stored copy, an old server — keeping
+ * each valid field and defaulting the rest, so one stale value does not throw
+ * away the others.
+ */
+export function parseReadingPrefs(value: unknown): ReadingPrefs {
+  const raw = (typeof value === "object" && value !== null ? value : {}) as Record<
+    string,
+    unknown
+  >;
+  return {
+    font_family: oneOf(FONT_FAMILIES, raw.font_family)
+      ? raw.font_family
+      : DEFAULT_READING_PREFS.font_family,
+    text_size: oneOf(TEXT_SIZES, raw.text_size) ? raw.text_size : DEFAULT_READING_PREFS.text_size,
+    density: oneOf(DENSITIES, raw.density) ? raw.density : DEFAULT_READING_PREFS.density,
+  };
+}
+
+const STORAGE_KEY = "readermost:reading-prefs";
+
+/** The last prefs this device applied, for painting before the server answers. */
+export function readCachedReadingPrefs(): ReadingPrefs {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return parseReadingPrefs(stored ? JSON.parse(stored) : undefined);
+  } catch {
+    return DEFAULT_READING_PREFS;
+  }
+}
+
+/** Puts prefs into effect on the page and remembers them for the next load. */
+export function applyReadingPrefs(prefs: ReadingPrefs): void {
+  const root = document.documentElement;
+  root.dataset.font = prefs.font_family;
+  root.dataset.textSize = prefs.text_size;
+  root.dataset.density = prefs.density;
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    // Only the head start on the next load is lost; the server has the truth.
+  }
+}
+
+/** Back to the defaults on this device, for sign-out. */
+export function forgetReadingPrefs(): void {
+  applyReadingPrefs(DEFAULT_READING_PREFS);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nothing to undo.
+  }
+}
