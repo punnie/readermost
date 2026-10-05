@@ -1,5 +1,5 @@
 interface Props {
-  name: "pencil" | "trash" | "grip" | "folder" | "share";
+  name: "pencil" | "trash" | "grip" | "folder" | "share" | "cards";
   size?: number;
 }
 
@@ -56,6 +56,14 @@ export function Icon({ name, size = 15 }: Props) {
           <path d="M12 3v13" />
           <path d="m7 8 5-5 5 5" />
           <path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
+        </svg>
+      );
+    case "cards":
+      // A card with another fanned out behind it: the deck.
+      return (
+        <svg {...common}>
+          <rect x="8" y="3" width="12" height="16" rx="2" transform="rotate(12 14 11)" />
+          <rect x="4" y="5" width="12" height="16" rx="2" />
         </svg>
       );
     case "folder":

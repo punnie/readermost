@@ -1430,6 +1430,316 @@ button.twisty:hover {
     font-size: 18px;
 }
 
+/* The list bar's deck toggle, lit while the deck is showing. */
+.bar-btn.active {
+    color: var(--accent);
+}
+
+/* ---------- card deck ---------- */
+
+.deck-host {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.deck-host[hidden],
+.mobile-scroller[hidden] {
+    display: none;
+}
+
+.deck {
+    /* 0 at rest, 1 when the top card is fully thrown: the card beneath rises
+     to meet it as it goes. Written by the drag, read by the stack. */
+    --lift: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-sunken);
+    overflow: hidden;
+}
+
+.deck-stack {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin: 14px 14px 0;
+}
+
+.deck-card {
+    /* -1 thrown left (read) .. 1 thrown right (star). */
+    --throw: 0;
+    position: absolute;
+    inset: 0 0 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.12);
+    /* The deck owns every touch on a card: nothing here scrolls. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    cursor: grab;
+    /* Pivot at the bottom edge, as if held there between finger and thumb. */
+    transform-origin: 50% 100%;
+    will-change: transform;
+}
+
+.deck-card:active {
+    cursor: grabbing;
+}
+
+/* The cards underneath: smaller and lower, rising as the top one leaves. */
+.deck-card[data-depth="1"] {
+    transform: translateY(calc((1 - var(--lift)) * 10px)) scale(calc(0.95 + var(--lift) * 0.05));
+}
+
+.deck-card[data-depth="2"] {
+    transform: translateY(calc(10px + (1 - var(--lift)) * 10px))
+        scale(calc(0.9 + var(--lift) * 0.05));
+    box-shadow: none;
+}
+
+.deck-card:not([data-depth="0"]) {
+    pointer-events: none;
+    transition: transform 200ms ease-out;
+}
+
+.deck-stack.dragging .deck-card:not([data-depth="0"]) {
+    transition: none;
+}
+
+.deck-stack.throwing .deck-card:not([data-depth="0"]) {
+    transition: transform 300ms ease-out;
+}
+
+/* The top card tints towards whatever it is about to become. */
+.deck-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--star);
+    opacity: max(0, calc(var(--throw) * 0.12));
+}
+
+.deck-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--text-muted);
+    opacity: max(0, calc(var(--throw) * -0.12));
+}
+
+.deck-stamp {
+    position: absolute;
+    top: 22px;
+    z-index: 1;
+    padding: 4px 12px;
+    border: 3px solid currentColor;
+    border-radius: 8px;
+    background: var(--bg-raised);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+/* Like the dating app: the verdict appears on the side the card is leaving from. */
+.deck-stamp-read {
+    right: 18px;
+    color: var(--text-muted);
+    transform: rotate(14deg);
+    opacity: max(0, calc(var(--throw) * -1));
+}
+
+.deck-stamp-star {
+    left: 18px;
+    color: var(--star);
+    transform: rotate(-14deg);
+    opacity: max(0, var(--throw));
+}
+
+.deck-image {
+    display: block;
+    width: 100%;
+    height: 38%;
+    min-height: 0;
+    flex-shrink: 0;
+    object-fit: cover;
+    background: var(--bg-hover);
+    -webkit-user-drag: none;
+}
+
+/* A failed image hides itself; the display above would otherwise win. */
+.deck-image[hidden] {
+    display: none;
+}
+
+.deck-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 18px 14px;
+}
+
+.deck-feed {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.deck-feed-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deck-feed .star {
+    margin-left: auto;
+}
+
+.deck-title {
+    margin: 0;
+    font-family: var(--reading-font);
+    font-size: 22px;
+    line-height: 1.25;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.deck-teaser {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    font-family: var(--reading-font);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    overflow: hidden;
+    /* Fade the cut rather than slice a line in half. */
+    mask-image: linear-gradient(to bottom, #000 70%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+
+.deck-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 12px;
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.deck-author {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.deck-done {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.deck-done-mark {
+    font-size: 44px;
+    color: var(--text-faint);
+}
+
+.deck-actions {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 6px 16px 14px;
+    flex-shrink: 0;
+    touch-action: manipulation;
+}
+
+.deck-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--bg-raised);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 120ms ease-out;
+}
+
+.deck-btn:active:not(:disabled) {
+    transform: scale(0.9);
+}
+
+.deck-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.deck-btn-small {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    color: var(--text-muted);
+}
+
+.deck-btn-read {
+    color: var(--text-muted);
+}
+
+.deck-btn-star {
+    color: var(--star);
+}
+
+.deck-count {
+    position: absolute;
+    right: 18px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deck-card:not([data-depth="0"]),
+    .deck-stack.throwing .deck-card:not([data-depth="0"]),
+    .deck-btn {
+        transition: none;
+    }
+}
+
 /* ---------- tab bar ---------- */
 
 .tabbar {

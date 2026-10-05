@@ -208,6 +208,20 @@ feeds and articles per user, so `/feed/12` is a durable bookmark for *you* on
 any of your devices, but opens a different feed for a friend. Mattermost post
 IDs are global, so a link to a shared item resolves the same for everybody.
 
+## Card deck
+
+On a phone, the cards button in a feed or folder's list bar turns its unread
+articles into a deck, one card at a time:
+
+- **Swipe left** — mark read, next card.
+- **Swipe right** — star it (and mark it read, so it leaves the unread pile),
+  next card.
+- **Tap** — open the article; back returns to the deck where you left it.
+- **↶** undoes the last swipe, read and star both.
+
+A short, quick flick counts as much as a long drag. The ✓ and ★ buttons under
+the deck do the same as the swipes, and so do ← and → on a keyboard.
+
 ## Search
 
 One box over three sources, at `/search?q=…`, reached from the top bar (or `/`)

@@ -26,6 +26,7 @@ import { Shortcuts } from "./components/Shortcuts";
 import { Sidebar } from "./components/Sidebar";
 import { Welcome } from "./components/Welcome";
 import { AddSubscription } from "./components/AddSubscription";
+import { CardDeck, type Decision } from "./components/CardDeck";
 import { Settings } from "./components/Settings";
 import { ReadingSettings } from "./components/ReadingSettings";
 import { NewFolder } from "./components/NewFolder";
@@ -141,6 +142,8 @@ export function App() {
   const [deletingFolder, setDeletingFolder] = useState<number>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // The phone's card deck, over the list it was opened from.
+  const [deckOpen, setDeckOpen] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
   // The open shared post is addressable too — and unlike feed ids, Mattermost
   // post ids are global, so this one URL really is shareable with a friend.
@@ -431,21 +434,21 @@ export function App() {
 
   // Marking read is batched: flicking through with j should cost one request,
   // not one per article.
-  const queueRead = useReadBatcher(
+  const { queue: queueRead, cancel: cancelRead } = useReadBatcher(
     useCallback(
       (ids: number[]) => setStatus.mutate({ ids, status: "read" }),
       [setStatus],
     ),
   );
 
-  const openEntry = useCallback(
+  /**
+   * Grey an entry out now; the batched PUT follows within a second. Writing
+   * the cache directly rather than firing a mutation is what keeps j/k and the
+   * card deck feeling instant without one request per article.
+   */
+  const markReadSoon = useCallback(
     (entry: Entry) => {
-      setSelectedEntryId(entry.id);
       if (entry.status !== "unread") return;
-
-      // Grey the row out now; the batched PUT follows within a second. Writing
-      // the cache directly rather than firing a mutation is what keeps j/k
-      // feeling instant without one request per keystroke.
       queryClient.setQueryData(
         ["entries", selection, sort, statusFilter, lengthFilter],
         (old: { entries: Entry[]; total: number } | undefined) =>
@@ -465,6 +468,32 @@ export function App() {
     [queueRead, queryClient, selection, sort, statusFilter, lengthFilter],
   );
 
+  const openEntry = useCallback(
+    (entry: Entry) => {
+      setSelectedEntryId(entry.id);
+      markReadSoon(entry);
+    },
+    [setSelectedEntryId, markReadSoon],
+  );
+
+  /** A card thrown out of the deck: either way it has been dealt with. */
+  const decideCard = useCallback(
+    (entry: Entry, decision: Decision) => {
+      if (decision === "star" && !entry.starred) toggleStar.mutate(entry.id);
+      markReadSoon(entry);
+    },
+    [toggleStar, markReadSoon],
+  );
+
+  const undoCard = useCallback(
+    (entry: Entry, decision: Decision, wasStarred: boolean) => {
+      cancelRead(entry.id);
+      setStatus.mutate({ ids: [entry.id], status: "unread" });
+      if (decision === "star" && !wasStarred) toggleStar.mutate(entry.id);
+    },
+    [cancelRead, setStatus, toggleStar],
+  );
+
   // Changing folders should land on nothing selected rather than a stale entry.
   // Moving to a different feed loads that feed's remembered preferences. The
   // route object is rebuilt on every navigation, so compare by value.
@@ -472,6 +501,8 @@ export function App() {
   useEffect(() => {
     if (sameSelection(previousSelection.current, selection)) return;
     previousSelection.current = selection;
+    // A deck is dealt from one list; a different list is a different deck.
+    setDeckOpen(false);
     setSort(readSort(selection));
     setStatusFilter(readStatusFilter(selection));
     setLengthFilter(readLengthFilter(selection));
@@ -864,6 +895,10 @@ export function App() {
       });
   };
 
+  /** Shared posts and search results are not a feed's articles to triage. */
+  const deckAvailable = selection.kind !== "shared" && !searchRoute;
+  const showingDeck = deckAvailable && deckOpen && !showingArticle;
+
   if (isMobile) {
     return (
       <>
@@ -907,6 +942,8 @@ export function App() {
                 title={searchRoute ? "Search" : selectionTitle(selection, tree.data)}
                 onOpenDrawer={() => setDrawerOpen(true)}
                 onSearch={openSearch}
+                onToggleDeck={deckAvailable ? () => setDeckOpen((open) => !open) : undefined}
+                deckOpen={showingDeck}
                 menu={mobileMenu}
               />
             )
@@ -925,7 +962,23 @@ export function App() {
             />
           }
         >
-          <div className="mobile-scroller">
+          {/*
+            Kept mounted, only hidden, while a card's article is open: the
+            deck's place and its undo history survive the trip there and back.
+          */}
+          {deckAvailable && deckOpen && (
+            <div className="deck-host" hidden={showingArticle}>
+              <CardDeck
+                entries={list}
+                isLoading={entries.isLoading}
+                onDecide={decideCard}
+                onUndo={undoCard}
+                onOpen={openEntry}
+                onClose={() => setDeckOpen(false)}
+              />
+            </div>
+          )}
+          <div className="mobile-scroller" hidden={showingDeck}>
             {/*
               The gesture surface is inside the scroller, never the scroller
               itself: transforming a scrolling container is what made iOS

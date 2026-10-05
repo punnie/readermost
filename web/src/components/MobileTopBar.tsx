@@ -6,6 +6,9 @@ interface ListBarProps {
   title: string;
   onOpenDrawer: () => void;
   onSearch: () => void;
+  /** Present when the list can be sorted as a deck of cards. */
+  onToggleDeck?: () => void;
+  deckOpen?: boolean;
   menu: ReactNode;
 }
 
@@ -14,6 +17,8 @@ export function MobileListBar({
   title,
   onOpenDrawer,
   onSearch,
+  onToggleDeck,
+  deckOpen,
   menu,
 }: ListBarProps) {
   return (
@@ -26,6 +31,16 @@ export function MobileListBar({
         <span aria-hidden="true">☰</span>
       </button>
       <h1 className="bar-title">{title}</h1>
+      {onToggleDeck && (
+        <button
+          className={`bar-btn ${deckOpen ? "active" : ""}`}
+          aria-label={deckOpen ? "Back to the list" : "Sort as cards"}
+          aria-pressed={deckOpen}
+          onClick={onToggleDeck}
+        >
+          <Icon name="cards" size={19} />
+        </button>
+      )}
       <button className="bar-btn" aria-label="Search" onClick={onSearch}>
         <span aria-hidden="true">⌕</span>
       </button>

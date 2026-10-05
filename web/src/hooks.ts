@@ -223,10 +223,19 @@ export function useReadBatcher(onFlush: (ids: number[]) => void, delay = 800) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (id: number) => {
-    pending.current.add(id);
-    if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(flush, delay);
+  return {
+    queue: (id: number) => {
+      pending.current.add(id);
+      if (timer.current) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(flush, delay);
+    },
+    /**
+     * Take an id back out before it is sent. An undone swipe has to, or the
+     * batch would mark it read again a moment after it was put back.
+     */
+    cancel: (id: number) => {
+      pending.current.delete(id);
+    },
   };
 }
 
