@@ -176,6 +176,19 @@ func (c *channelSnapshot) find(postID string) *rootPost {
 	return nil
 }
 
+// byKey returns the share a Mattermost backlink names, if it is still in reach.
+func (c *channelSnapshot) byKey(key string) *rootPost {
+	if key == "" {
+		return nil
+	}
+	for _, root := range c.roots {
+		if root.Link != nil && root.Link.Key == key {
+			return root
+		}
+	}
+	return nil
+}
+
 // shareOf returns the discussion for an article URL, if there is one.
 func (c *channelSnapshot) shareOf(entryURL string) *rootPost {
 	return c.byURL[normaliseURL(entryURL)]

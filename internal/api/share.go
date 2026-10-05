@@ -2,8 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -36,6 +39,8 @@ type sharedLink struct {
 	Excerpt     string `json:"excerpt,omitempty"`
 	// Note is what the sharer said about the link, without the link markup.
 	Note string `json:"note,omitempty"`
+	// Key resolves the backlink in the Mattermost message; see handleShareLink.
+	Key string `json:"-"`
 	// FromReadermost distinguishes a rich share from a bare pasted URL.
 	FromReadermost bool `json:"from_readermost"`
 }
@@ -164,6 +169,7 @@ func linkFromPost(post *mattermost.Post) *sharedLink {
 			PublishedAt:    shared.PublishedAt,
 			Excerpt:        shared.Excerpt,
 			Note:           note,
+			Key:            shared.Key,
 			FromReadermost: true,
 		}
 	}
@@ -380,9 +386,14 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		return nil
 	}
 
+	key, err := newShareKey()
+	if err != nil {
+		return err
+	}
+
 	post := &mattermost.Post{
 		ChannelID: s.cfg.Mattermost.SharedChannelID,
-		Message:   shareMessage(request.Message, entry, s.riverURL()),
+		Message:   shareMessage(request.Message, entry, s.shareLinkURL(key)),
 	}
 
 	link := &mattermost.SharedLink{
@@ -392,6 +403,7 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 		Author:   entry.Author,
 		Excerpt:  excerptFrom(entry.Content),
 		Note:     strings.TrimSpace(request.Message),
+		Key:      key,
 	}
 	if !entry.PublishedAt.IsZero() {
 		link.PublishedAt = entry.PublishedAt.UTC().Format(time.RFC3339)
@@ -441,9 +453,9 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request, identity *a
 
 // shareMessage composes the post body, kept compact on purpose: one line with
 // the article as a markdown link (first, so Mattermost previews it rather than
-// the backlink), its feed and a link back to the river; then the sharer's note,
+// the backlink), its feed and a link to its river entry; then the sharer's note,
 // marked so nobody mistakes it for the article's own words.
-func shareMessage(note string, entry *miniflux.Entry, riverURL string) string {
+func shareMessage(note string, entry *miniflux.Entry, backlink string) string {
 	title := strings.TrimSpace(entry.Title)
 	if title == "" {
 		title = entry.URL
@@ -453,8 +465,8 @@ func shareMessage(note string, entry *miniflux.Entry, riverURL string) string {
 	if entry.Feed != nil && strings.TrimSpace(entry.Feed.Title) != "" {
 		parts = append(parts, escapeMarkdown(strings.TrimSpace(entry.Feed.Title)))
 	}
-	if riverURL != "" {
-		parts = append(parts, fmt.Sprintf("[Readermost ↗](%s)", riverURL))
+	if backlink != "" {
+		parts = append(parts, fmt.Sprintf("[Readermost ↗](%s)", backlink))
 	}
 	headline := strings.Join(parts, " · ")
 
@@ -465,13 +477,50 @@ func shareMessage(note string, entry *miniflux.Entry, riverURL string) string {
 	return headline + "\n\n💬 " + note
 }
 
-// riverURL is the shared river in Readermost, for links back from Mattermost.
-func (s *Server) riverURL() string {
+// newShareKey makes the short, unguessable name a share's backlink uses.
+func newShareKey() (string, error) {
+	buf := make([]byte, 9)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate share key: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
+}
+
+// shareLinkURL is the backlink from a Mattermost post to its river entry.
+func (s *Server) shareLinkURL(key string) string {
 	base := strings.TrimRight(s.cfg.PublicURL, "/")
 	if base == "" {
 		return ""
 	}
-	return base + "/shared"
+	return base + "/s/" + key
+}
+
+// handleShareLink resolves a backlink from Mattermost to the river entry it
+// was posted as.
+//
+// The message has to be written before Mattermost assigns the post an ID, and
+// editing it in afterwards would mark every share as edited, so the link
+// carries a key from the share's props instead and is resolved here.
+func (s *Server) handleShareLink(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+
+	identity, ok := auth.FromContext(r.Context())
+	if !ok {
+		// Come straight back here once signed in.
+		http.Redirect(w, r, "/auth/login?return="+url.QueryEscape("/s/"+key), http.StatusFound)
+		return
+	}
+
+	target := "/shared"
+	snapshot, err := s.snapshot(r.Context(), identity.Mattermost(s.mm))
+	if err != nil {
+		s.log.Warn("resolve share link failed", "error", err)
+	} else if root := snapshot.byKey(key); root != nil {
+		target = "/shared/" + root.PostID
+	}
+	// An unknown key — a deleted post, or one older than the snapshot reaches —
+	// still lands somewhere useful.
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 // escapeLinkText keeps a title from closing its markdown link early.
