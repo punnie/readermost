@@ -1,17 +1,27 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { DropStrip } from "./DropStrip";
 import { FeedIcon } from "./FeedIcon";
-import { feedDragProps, folderDropProps } from "../dnd";
-import type { Selection, Tree } from "../types";
+import { ContextMenu, MenuItem, MenuSeparator } from "./Menu";
+import {
+  feedDragProps,
+  folderDropProps,
+  useDragAutoScroll,
+  useFeedDrag,
+  useSpringLoadedFolders,
+} from "../dnd";
+import { useCollapsedFolders } from "../folders";
+import type { Selection, Tree, TreeCategory } from "../types";
 
 interface Props {
   tree?: Tree;
   riverUnread: number;
   selection: Selection;
   onSelect: (selection: Selection) => void;
-  collapsed: Set<number>;
-  onToggleCollapse: (categoryId: number) => void;
   onNewFolder: () => void;
+  /** Given both, right-clicking a folder offers to rename or delete it. */
+  onRenameFolder?: (categoryId: number, title: string) => void;
+  onDeleteFolder?: (categoryId: number, title: string) => void;
   /** Dragging is a desktop affordance; on touch it only blocks scrolling. */
   draggable?: boolean;
   /** Move a feed into a folder, from a drag or a drop. */
@@ -27,14 +37,29 @@ export function Sidebar({
   riverUnread,
   selection,
   onSelect,
-  collapsed,
-  onToggleCollapse,
   onNewFolder,
+  onRenameFolder,
+  onDeleteFolder,
   onMoveFeed,
   draggable = true,
 }: Props) {
+  const navRef = useRef<HTMLElement>(null);
+  const { collapsed, toggle, setAll } = useCollapsedFolders();
   // The folder a feed is currently hovering over, so the drop target is obvious.
   const [dropTarget, setDropTarget] = useState<number>();
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    category: TreeCategory;
+  }>();
+
+  const anyDrag = useFeedDrag();
+  // A drag in the Subscriptions dialog is not this list's business.
+  const drag = draggable && anyDrag?.origin === "sidebar" ? anyDrag : undefined;
+  const dragging = drag !== undefined;
+  useDragAutoScroll(navRef, dragging);
+  const peeked = useSpringLoadedFolders(dropTarget, collapsed, dragging);
+  const canContextMenu = onRenameFolder !== undefined && onDeleteFolder !== undefined;
 
   const isSelected = (candidate: Selection) => {
     if (candidate.kind !== selection.kind) return false;
@@ -42,12 +67,18 @@ export function Sidebar({
     return true;
   };
 
-  /** The folder row and its feeds all accept a drop, meaning that folder. */
-  const dropHandlers = (categoryId: number) =>
-    folderDropProps(categoryId, onMoveFeed, setDropTarget);
-
   return (
-    <nav className="pane sidebar">
+    <nav className="pane sidebar" ref={navRef}>
+      {draggable && (
+        <DropStrip
+          tree={tree}
+          drag={drag}
+          dropTarget={dropTarget}
+          setDropTarget={setDropTarget}
+          onMove={onMoveFeed}
+        />
+      )}
+
       <div className="nav-section">
         <button
           className={`nav-item ${isSelected({ kind: "shared" }) ? "selected" : ""} ${
@@ -101,36 +132,45 @@ export function Sidebar({
         </div>
 
         {tree?.categories.map((category) => {
-          const isCollapsed = collapsed.has(category.id);
-          const handlers = dropHandlers(category.id);
+          const isCollapsed = collapsed.has(category.id) && !peeked.has(category.id);
 
           return (
-            <div key={category.id} className={dropTarget === category.id ? "drop-target" : ""}>
-              <button
-                className={`nav-item ${
-                  isSelected({ kind: "category", id: category.id })
-                    ? "selected"
-                    : ""
+            <div
+              key={category.id}
+              className={dropTarget === category.id ? "drop-target" : ""}
+              // The folder row and its feeds all accept a drop, meaning that folder.
+              {...folderDropProps(category.id, onMoveFeed, setDropTarget)}
+            >
+              <div
+                className={`nav-item folder ${
+                  isSelected({ kind: "category", id: category.id }) ? "selected" : ""
                 } ${category.unread > 0 ? "has-unread" : ""}`}
-                onClick={() =>
-                  onSelect({ kind: "category", id: category.id })
+                onContextMenu={
+                  canContextMenu
+                    ? (event) => {
+                        event.preventDefault();
+                        setContextMenu({ x: event.clientX, y: event.clientY, category });
+                      }
+                    : undefined
                 }
-                {...handlers}
               >
-                <span
+                <button
                   className="twisty"
-                  onClick={(event) => {
-                    // Toggling open/closed must not also change the selection.
-                    event.stopPropagation();
-                    onToggleCollapse(category.id);
-                  }}
-                  role="presentation"
+                  aria-expanded={!isCollapsed}
+                  aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${category.title}`}
+                  title={isCollapsed ? "Expand" : "Collapse"}
+                  onClick={() => toggle(category.id)}
                 >
                   {isCollapsed ? "▶" : "▼"}
-                </span>
-                <span className="label">{category.title}</span>
-                {category.unread > 0 && <span className="count">{category.unread}</span>}
-              </button>
+                </button>
+                <button
+                  className="nav-label"
+                  onClick={() => onSelect({ kind: "category", id: category.id })}
+                >
+                  <span className="label">{category.title}</span>
+                  {category.unread > 0 && <span className="count">{category.unread}</span>}
+                </button>
+              </div>
 
               {!isCollapsed &&
                 category.feeds.map((feed) => (
@@ -143,9 +183,7 @@ export function Sidebar({
                     } ${feed.unread > 0 ? "has-unread" : ""}`}
                     onClick={() => onSelect({ kind: "feed", id: feed.id })}
                     title={feed.error || feed.title}
-                    {...(draggable ? feedDragProps(feed.id, category.id) : {})}
-                    // A feed dropped onto a sibling means the folder it is in.
-                    {...handlers}
+                    {...(draggable ? feedDragProps(feed.id, category.id, "sidebar") : {})}
                   >
                     <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
                     <span className="label">{feed.title}</span>
@@ -167,6 +205,49 @@ export function Sidebar({
           </div>
         )}
       </div>
+
+      {contextMenu && canContextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(undefined)}
+        >
+          <MenuItem
+            onClick={() => {
+              onRenameFolder(contextMenu.category.id, contextMenu.category.title);
+              setContextMenu(undefined);
+            }}
+          >
+            Rename folder…
+          </MenuItem>
+          <MenuItem
+            danger
+            onClick={() => {
+              onDeleteFolder(contextMenu.category.id, contextMenu.category.title);
+              setContextMenu(undefined);
+            }}
+          >
+            Delete folder…
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            onClick={() => {
+              setAll(tree?.categories.map((category) => category.id) ?? [], true);
+              setContextMenu(undefined);
+            }}
+          >
+            Collapse all folders
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setAll([], false);
+              setContextMenu(undefined);
+            }}
+          >
+            Expand all folders
+          </MenuItem>
+        </ContextMenu>
+      )}
     </nav>
   );
 }

@@ -2,8 +2,16 @@ import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../api";
-import { feedDragProps, folderDropProps } from "../dnd";
+import {
+  feedDragProps,
+  folderDropProps,
+  useDragAutoScroll,
+  useFeedDrag,
+  useSpringLoadedFolders,
+} from "../dnd";
+import { useCollapsedFolders } from "../folders";
 import { useMoveFeed } from "../hooks";
+import { DropStrip } from "./DropStrip";
 import { FeedIcon } from "./FeedIcon";
 import { Icon } from "./Icon";
 import type { Tree } from "../types";
@@ -11,15 +19,26 @@ import type { Tree } from "../types";
 interface Props {
   tree?: Tree;
   onClose: () => void;
+  /** Ask to delete a folder; the app owns the dialog, so it can fix the selection. */
+  onDeleteFolder: (categoryId: number) => void;
 }
 
 /** Subscription housekeeping: drag feeds between folders, rename, unsubscribe. */
-export function Settings({ tree, onClose }: Props) {
+export function Settings({ tree, onClose, onDeleteFolder }: Props) {
   const queryClient = useQueryClient();
   const moveFeed = useMoveFeed();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string>();
   const [dropTarget, setDropTarget] = useState<number>();
+  const listRef = useRef<HTMLDivElement>(null);
+  const { collapsed, toggle, setAll } = useCollapsedFolders();
+
+  const anyDrag = useFeedDrag();
+  const drag = anyDrag?.origin === "subscriptions" ? anyDrag : undefined;
+  useDragAutoScroll(listRef, drag !== undefined);
+  const peeked = useSpringLoadedFolders(dropTarget, collapsed, drag !== undefined);
+  const allIDs = tree?.categories.map((category) => category.id) ?? [];
+  const allCollapsed = allIDs.length > 0 && allIDs.every((id) => collapsed.has(id));
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["tree"] });
@@ -76,6 +95,14 @@ export function Settings({ tree, onClose }: Props) {
           </span>
           <button
             className="btn"
+            disabled={allIDs.length === 0}
+            onClick={() => setAll(allIDs, !allCollapsed)}
+            title="Collapsed folders still take a dropped feed"
+          >
+            {allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+          <button
+            className="btn"
             onClick={() => {
               const title = window.prompt("New folder name");
               if (title?.trim()) createCategory.mutate(title.trim());
@@ -85,21 +112,45 @@ export function Settings({ tree, onClose }: Props) {
           </button>
         </header>
 
-        <p className="subs-hint">Drag a feed onto a folder to move it.</p>
+        <p className="subs-hint">
+          Drag a feed onto a folder to move it — every folder appears at the top while you drag.
+        </p>
 
-        <div className="subs-list">
+        <div className="subs-list" ref={listRef}>
+          <DropStrip
+            tree={tree}
+            drag={drag}
+            dropTarget={dropTarget}
+            setDropTarget={setDropTarget}
+            onMove={moveFeed}
+          />
+
           {tree?.categories.map((category) => {
-            const drop = folderDropProps(category.id, moveFeed, setDropTarget);
+            const isCollapsed = collapsed.has(category.id) && !peeked.has(category.id);
 
             return (
               <section
                 key={category.id}
-                className={`subs-folder ${dropTarget === category.id ? "drop-target" : ""}`}
-                {...drop}
+                className={`subs-folder ${isCollapsed ? "collapsed" : ""} ${
+                  dropTarget === category.id ? "drop-target" : ""
+                }`}
+                // The heading and every feed row accept a drop, meaning this folder.
+                {...folderDropProps(category.id, moveFeed, setDropTarget)}
               >
                 <div className="subs-folder-head">
+                  <button
+                    className="twisty"
+                    aria-expanded={!isCollapsed}
+                    aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${category.title}`}
+                    title={isCollapsed ? "Expand" : "Collapse"}
+                    onClick={() => toggle(category.id)}
+                  >
+                    {isCollapsed ? "▶" : "▼"}
+                  </button>
                   <Icon name="folder" />
-                  <span className="name">{category.title}</span>
+                  <button className="name" onClick={() => toggle(category.id)}>
+                    {category.title}
+                  </button>
                   <span className="subs-count">{category.feeds.length}</span>
                   <button
                     className="icon-btn"
@@ -114,20 +165,25 @@ export function Settings({ tree, onClose }: Props) {
                   >
                     <Icon name="pencil" />
                   </button>
+                  <button
+                    className="icon-btn danger"
+                    aria-label={`Delete the folder ${category.title}`}
+                    title="Delete folder"
+                    onClick={() => onDeleteFolder(category.id)}
+                  >
+                    <Icon name="trash" />
+                  </button>
                 </div>
 
-                {category.feeds.length === 0 && (
+                {!isCollapsed && category.feeds.length === 0 && (
                   <div className="subs-empty">Empty — drop a feed here</div>
                 )}
 
-                {category.feeds.map((feed) => (
+                {!isCollapsed && category.feeds.map((feed) => (
                   <div
                     key={feed.id}
                     className="subs-feed"
-                    {...feedDragProps(feed.id, category.id)}
-                    // A feed row stands in for the folder it sits in, so
-                    // dropping onto a sibling does the obvious thing.
-                    {...drop}
+                    {...feedDragProps(feed.id, category.id, "subscriptions")}
                   >
                     <span className="grip" title="Drag to another folder">
                       <Icon name="grip" size={14} />

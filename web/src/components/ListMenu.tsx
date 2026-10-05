@@ -196,7 +196,7 @@ export function ListMenu({
                   close();
                 }}
               >
-                Delete folder
+                Delete folder…
               </MenuItem>
             </>
           )}

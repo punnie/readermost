@@ -29,6 +29,7 @@ import { AddSubscription } from "./components/AddSubscription";
 import { Settings } from "./components/Settings";
 import { ReadingSettings } from "./components/ReadingSettings";
 import { NewFolder } from "./components/NewFolder";
+import { DeleteFolder } from "./components/DeleteFolder";
 import { ListToolbar } from "./components/ListToolbar";
 import { SearchView } from "./components/SearchView";
 import { ListMenu } from "./components/ListMenu";
@@ -128,7 +129,6 @@ export function App() {
       navigate(pathFor(selection, entryID), { replace: selectedEntryId !== undefined }),
     [navigate, selection, selectedEntryId],
   );
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [sharing, setSharing] = useState<Entry>();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -137,6 +137,8 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showReading, setShowReading] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
+  // The folder whose delete dialog is open, from any of the places offering it.
+  const [deletingFolder, setDeletingFolder] = useState<number>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
@@ -384,27 +386,16 @@ export function App() {
     [refreshTree],
   );
 
-  const deleteFolder = useCallback(
-    (categoryId: number, title: string) => {
-      const target = (tree.data?.categories ?? [])
-        .filter((category) => category.id !== categoryId)
-        .sort((a, b) => a.id - b.id)[0];
-      if (!target) return;
+  const deleteFolder = useCallback((categoryId: number) => setDeletingFolder(categoryId), []);
 
-      const feedCount =
-        tree.data?.categories.find((category) => category.id === categoryId)?.feeds.length ?? 0;
-
-      const message = feedCount
-        ? `Delete the folder "${title}"? Its ${feedCount} feed${feedCount === 1 ? "" : "s"} will move to "${target.title}".`
-        : `Delete the empty folder "${title}"?`;
-      if (!window.confirm(message)) return;
-
-      void api.deleteCategory(categoryId).then(() => {
+  /** A deleted folder can no longer be what is on screen. */
+  const folderDeleted = useCallback(
+    (categoryId: number) => {
+      if (selection.kind === "category" && selection.id === categoryId) {
         setSelection({ kind: "unread" });
-        refreshTree();
-      });
+      }
     },
-    [tree.data, refreshTree],
+    [selection, setSelection],
   );
 
   /**
@@ -768,7 +759,22 @@ export function App() {
         />
       )}
 
-      {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <Settings
+          tree={tree.data}
+          onClose={() => setShowSettings(false)}
+          onDeleteFolder={deleteFolder}
+        />
+      )}
+      {/* After Settings, so it opens on top of it. */}
+      {deletingFolder !== undefined && (
+        <DeleteFolder
+          tree={tree.data}
+          categoryID={deletingFolder}
+          onClose={() => setDeletingFolder(undefined)}
+          onDeleted={folderDeleted}
+        />
+      )}
 
       {showReading && <ReadingSettings onClose={() => setShowReading(false)} />}
       {showNewFolder && <NewFolder onClose={() => setShowNewFolder(false)} />}
@@ -880,15 +886,6 @@ export function App() {
                 setDrawerOpen(false);
               }}
               onMoveFeed={moveFeed}
-              collapsed={collapsed}
-              onToggleCollapse={(id) =>
-                setCollapsed((current) => {
-                  const next = new Set(current);
-                  if (next.has(id)) next.delete(id);
-                  else next.add(id);
-                  return next;
-                })
-              }
             />
           }
           topBar={
@@ -1023,20 +1020,10 @@ export function App() {
         selection={selection}
         riverUnread={shared.data?.unread ?? 0}
         onSelect={setSelection}
-        collapsed={collapsed}
         onNewFolder={() => setShowNewFolder(true)}
+        onRenameFolder={renameFolder}
+        onDeleteFolder={deleteFolder}
         onMoveFeed={moveFeed}
-        onToggleCollapse={(id) =>
-          setCollapsed((current) => {
-            const next = new Set(current);
-            if (next.has(id)) {
-              next.delete(id);
-            } else {
-              next.add(id);
-            }
-            return next;
-          })
-        }
       />
 
       {/*
@@ -1150,7 +1137,22 @@ export function App() {
         />
       )}
 
-      {showSettings && <Settings tree={tree.data} onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <Settings
+          tree={tree.data}
+          onClose={() => setShowSettings(false)}
+          onDeleteFolder={deleteFolder}
+        />
+      )}
+      {/* After Settings, so it opens on top of it. */}
+      {deletingFolder !== undefined && (
+        <DeleteFolder
+          tree={tree.data}
+          categoryID={deletingFolder}
+          onClose={() => setDeletingFolder(undefined)}
+          onDeleted={folderDeleted}
+        />
+      )}
 
       {showReading && <ReadingSettings onClose={() => setShowReading(false)} />}
 
