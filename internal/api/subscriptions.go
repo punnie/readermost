@@ -245,7 +245,7 @@ func (s *Server) handleDeleteCategory(w http.ResponseWriter, r *http.Request, id
 
 	ctx := r.Context()
 
-	return s.auth.WithMiniflux(ctx, identity, func(client *miniflux.Client) error {
+	err = s.auth.WithMiniflux(ctx, identity, func(client *miniflux.Client) error {
 		categories, err := client.Categories(ctx, false)
 		if err != nil {
 			return err
@@ -278,6 +278,14 @@ func (s *Server) handleDeleteCategory(w http.ResponseWriter, r *http.Request, id
 
 		return client.DeleteCategory(ctx, id)
 	})
+	if err != nil {
+		return err
+	}
+
+	// An explicit 204: an empty 200 made the client try, and fail, to parse
+	// a JSON body, so the folder vanished without the sidebar noticing.
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 type markReadRequest struct {
