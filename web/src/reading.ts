@@ -1,6 +1,7 @@
 /**
  * How the app looks: the typeface, size and spacing of articles and
- * discussions, and the accent colour the chrome is drawn in.
+ * discussions, the accent colour the chrome is drawn in, and whether unread
+ * items are counted.
  *
  * The server keeps the choice so it follows the reader between devices; this
  * module turns it into attributes on <html>, and styles.css does the rest. A
@@ -13,17 +14,21 @@ export const TEXT_SIZES = ["small", "medium", "large", "xlarge"] as const;
 export const DENSITIES = ["compact", "comfortable", "spacious"] as const;
 /** Named rather than free-form, so each has a tuned light and dark variant. */
 export const ACCENTS = ["blue", "teal", "green", "orange", "rose", "purple", "graphite"] as const;
+/** Whether unread items show how many, or only that there are some. */
+export const UNREAD_MARKS = ["count", "dot"] as const;
 
 export type FontFamily = (typeof FONT_FAMILIES)[number];
 export type TextSize = (typeof TEXT_SIZES)[number];
 export type Density = (typeof DENSITIES)[number];
 export type Accent = (typeof ACCENTS)[number];
+export type UnreadMark = (typeof UNREAD_MARKS)[number];
 
 export interface ReadingPrefs {
   font_family: FontFamily;
   text_size: TextSize;
   density: Density;
   accent: Accent;
+  unread_mark: UnreadMark;
 }
 
 /** Matches the server's defaults, and the look the reader had before. */
@@ -32,6 +37,7 @@ export const DEFAULT_READING_PREFS: ReadingPrefs = {
   text_size: "medium",
   density: "comfortable",
   accent: "blue",
+  unread_mark: "count",
 };
 
 export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
@@ -64,6 +70,11 @@ export const ACCENT_LABELS: Record<Accent, string> = {
   graphite: "Graphite",
 };
 
+export const UNREAD_MARK_LABELS: Record<UnreadMark, string> = {
+  count: "Counts",
+  dot: "Dots",
+};
+
 function oneOf<T extends string>(options: readonly T[], value: unknown): value is T {
   return typeof value === "string" && (options as readonly string[]).includes(value);
 }
@@ -85,6 +96,9 @@ export function parseReadingPrefs(value: unknown): ReadingPrefs {
     text_size: oneOf(TEXT_SIZES, raw.text_size) ? raw.text_size : DEFAULT_READING_PREFS.text_size,
     density: oneOf(DENSITIES, raw.density) ? raw.density : DEFAULT_READING_PREFS.density,
     accent: oneOf(ACCENTS, raw.accent) ? raw.accent : DEFAULT_READING_PREFS.accent,
+    unread_mark: oneOf(UNREAD_MARKS, raw.unread_mark)
+      ? raw.unread_mark
+      : DEFAULT_READING_PREFS.unread_mark,
   };
 }
 

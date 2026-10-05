@@ -110,15 +110,16 @@ CREATE TABLE IF NOT EXISTS river_reads (
 CREATE INDEX IF NOT EXISTS river_reads_user_idx ON river_reads(user_id);
 
 -- How a user likes the app to look: the typeface, size and spacing of articles
--- and discussions, and the accent colour of the chrome. It lives here rather
--- than in the browser so it follows them between devices. A missing row means
--- the defaults.
+-- and discussions, the accent colour of the chrome, and whether unread items
+-- show a count or just a dot. It lives here rather than in the browser so it
+-- follows them between devices. A missing row means the defaults.
 CREATE TABLE IF NOT EXISTS reading_prefs (
   user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   font_family TEXT    NOT NULL,
   text_size   TEXT    NOT NULL,
   density     TEXT    NOT NULL,
   accent      TEXT    NOT NULL DEFAULT 'blue',
+  unread_mark TEXT    NOT NULL DEFAULT 'count',
   updated_at  INTEGER NOT NULL
 );
 `
@@ -128,6 +129,7 @@ CREATE TABLE IF NOT EXISTS reading_prefs (
 // before a column existed is given it here.
 var columnsAdded = []struct{ table, column, definition string }{
 	{"reading_prefs", "accent", `TEXT NOT NULL DEFAULT 'blue'`},
+	{"reading_prefs", "unread_mark", `TEXT NOT NULL DEFAULT 'count'`},
 }
 
 func addMissingColumns(db *sql.DB) error {

@@ -19,7 +19,7 @@ func TestReadingPrefsDefaultUntilSaved(t *testing.T) {
 		t.Fatalf("a fresh user has %+v, want the defaults", prefs)
 	}
 
-	want := ReadingPrefs{FontFamily: "opendyslexic", TextSize: "large", Density: "spacious", Accent: "teal"}
+	want := ReadingPrefs{FontFamily: "opendyslexic", TextSize: "large", Density: "spacious", Accent: "teal", UnreadMark: "dot"}
 	if err := db.SetReadingPrefs(ctx, userID, want); err != nil {
 		t.Fatalf("SetReadingPrefs: %v", err)
 	}
@@ -37,9 +37,10 @@ func TestReadingPrefsDefaultUntilSaved(t *testing.T) {
 	}
 }
 
-// A database from before the accent column existed gains it on open, and the
-// choices already saved in it come through with the default accent.
-func TestOpenAddsAccentToOldDatabase(t *testing.T) {
+// A database from before the accent and unread-mark columns existed gains them
+// on open, and the choices already saved in it come through with the new
+// defaults.
+func TestOpenAddsNewColumnsToOldDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "old.db")
 	old, err := sql.Open("sqlite", "file:"+path)
 	if err != nil {
@@ -71,7 +72,7 @@ func TestOpenAddsAccentToOldDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadingPrefs: %v", err)
 	}
-	want := ReadingPrefs{FontFamily: "serif", TextSize: "large", Density: "compact", Accent: "blue"}
+	want := ReadingPrefs{FontFamily: "serif", TextSize: "large", Density: "compact", Accent: "blue", UnreadMark: "count"}
 	if prefs != want {
 		t.Fatalf("got %+v, want %+v", prefs, want)
 	}

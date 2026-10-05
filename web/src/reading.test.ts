@@ -9,6 +9,7 @@ describe("parseReadingPrefs", () => {
       text_size: "xlarge",
       density: "spacious",
       accent: "teal",
+      unread_mark: "dot",
     };
     expect(parseReadingPrefs(prefs)).toEqual(prefs);
   });
@@ -23,12 +24,13 @@ describe("parseReadingPrefs", () => {
   // reader the choices that are still good.
   it("replaces only the fields it does not recognise", () => {
     expect(
-      parseReadingPrefs({ font_family: "papyrus", text_size: "large", density: 3, accent: "#f0f" }),
+      parseReadingPrefs({ font_family: "papyrus", text_size: "large", density: 3, accent: "#f0f", unread_mark: "none" }),
     ).toEqual({
       font_family: DEFAULT_READING_PREFS.font_family,
       text_size: "large",
       density: DEFAULT_READING_PREFS.density,
       accent: DEFAULT_READING_PREFS.accent,
+      unread_mark: DEFAULT_READING_PREFS.unread_mark,
     });
   });
 });

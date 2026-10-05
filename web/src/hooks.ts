@@ -9,16 +9,24 @@ import { api, type EntryQuery } from "./api";
 import { sortQuery, type SortOrder } from "./sort";
 import { statusesFor, type LengthFilter, type StatusFilter } from "./filters";
 import {
+  DEFAULT_READING_PREFS,
   applyReadingPrefs,
   parseReadingPrefs,
   readCachedReadingPrefs,
   type ReadingPrefs,
+  type UnreadMark,
 } from "./reading";
 import type { Entry, Selection, Tree } from "./types";
 
 export function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: api.me, retry: false });
 }
+
+const readingPrefsQuery = {
+  queryKey: ["reading-prefs"],
+  queryFn: async () => parseReadingPrefs(await api.readingPrefs()),
+  placeholderData: readCachedReadingPrefs,
+};
 
 /**
  * The signed-in reader's typography choices, put into effect on the page.
@@ -28,9 +36,7 @@ export function useMe() {
  */
 export function useReadingPrefs(enabled: boolean) {
   const prefs = useQuery({
-    queryKey: ["reading-prefs"],
-    queryFn: async () => parseReadingPrefs(await api.readingPrefs()),
-    placeholderData: readCachedReadingPrefs,
+    ...readingPrefsQuery,
     enabled,
   });
 
@@ -40,6 +46,15 @@ export function useReadingPrefs(enabled: boolean) {
   }, [data]);
 
   return prefs;
+}
+
+/**
+ * Whether unread items show a count or just a dot. Reads the prefs the app
+ * has already loaded rather than fetching them again.
+ */
+export function useUnreadMark(): UnreadMark {
+  const { data } = useQuery({ ...readingPrefsQuery, enabled: false });
+  return (data ?? DEFAULT_READING_PREFS).unread_mark;
 }
 
 /** Saves typography and colour choices, showing them at once rather than after the round trip. */

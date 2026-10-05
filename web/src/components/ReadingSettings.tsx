@@ -11,6 +11,8 @@ import {
   FONT_FAMILY_LABELS,
   TEXT_SIZES,
   TEXT_SIZE_LABELS,
+  UNREAD_MARKS,
+  UNREAD_MARK_LABELS,
   type ReadingPrefs,
 } from "../reading";
 
@@ -71,8 +73,8 @@ function Choice<T extends string>({
 }
 
 /**
- * The accent colour of the app, and the typeface, size and spacing of articles
- * and discussions.
+ * The accent colour of the app, how unread items are marked, and the typeface,
+ * size and spacing of articles and discussions.
  *
  * Every choice takes effect as it is made — the app behind the dialog is the
  * preview — and is saved to the account, so other devices follow.
@@ -117,6 +119,14 @@ export function ReadingSettings({ onClose }: Props) {
           optionAttrs={(accent) => ({ "data-accent-sample": accent })}
           optionPrefix={() => <span className="swatch" aria-hidden="true" />}
           className="swatches"
+        />
+        <Choice
+          legend="Unread items"
+          name="unread_mark"
+          options={UNREAD_MARKS}
+          labels={UNREAD_MARK_LABELS}
+          value={current.unread_mark}
+          onChange={(unread_mark) => change({ unread_mark })}
         />
         <Choice
           legend="Font"

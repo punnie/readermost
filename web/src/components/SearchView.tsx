@@ -6,6 +6,7 @@ import { api } from "../api";
 import { fold, matchFeeds, mayNeedAccents } from "../search";
 import { formatListDate, timeAgo } from "../format";
 import { FeedIcon } from "./FeedIcon";
+import { UnreadCount } from "./UnreadCount";
 import { Avatar } from "./Avatar";
 import type { Entry, Selection, SharedItem, Tree } from "../types";
 
@@ -142,7 +143,7 @@ export function SearchView({
               <FeedIcon feedId={feed.id} hasIcon={feed.has_icon} />
               <span className="title">{feed.title}</span>
               <span className="meta">{folder}</span>
-              {feed.unread > 0 && <span className="count">{feed.unread}</span>}
+              <UnreadCount count={feed.unread} />
             </button>
           ))}
         </section>

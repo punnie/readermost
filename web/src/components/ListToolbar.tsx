@@ -1,6 +1,7 @@
 import { CheckCheck, RefreshCw, X } from "lucide-react";
 
 import { ListMenu } from "./ListMenu";
+import { UnreadCount } from "./UnreadCount";
 import type { SortOrder } from "../sort";
 import {
   LENGTH_LABELS,
@@ -71,7 +72,7 @@ export function ListToolbar({
         <span className="name" title={title}>
           {title}
         </span>
-        {unread > 0 && <span className="count">{unread}</span>}
+        <UnreadCount count={unread} />
       </div>
 
       {(statusFilter !== "all" || lengthFilter !== "any") && (

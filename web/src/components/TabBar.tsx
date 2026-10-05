@@ -1,5 +1,6 @@
 import { Ellipsis, Inbox, Newspaper, Star, Users, type LucideIcon } from "lucide-react";
 
+import { UnreadCount } from "./UnreadCount";
 import type { Selection } from "../types";
 
 interface Props {
@@ -55,7 +56,11 @@ export function TabBar({
           >
             <span className="tab-glyph" aria-hidden="true">
               <Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
-              {badge > 0 && <span className="tab-badge">{badge > 99 ? "99+" : badge}</span>}
+              <UnreadCount
+                count={badge}
+                className="tab-badge"
+                format={(count) => (count > 99 ? "99+" : String(count))}
+              />
             </span>
             <span className="tab-label">{label}</span>
           </button>

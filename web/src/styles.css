@@ -471,6 +471,18 @@ a {
     color: var(--accent-text);
 }
 
+/* For a reader who has chosen not to see counts: "there is something new",
+   without "and this much of it". Centred in the space a count pill takes. */
+.unread-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-inline: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    align-self: center;
+}
+
 /* A folder row holds two buttons — the twisty and the folder itself — so the
    row is a div and the buttons stretch to fill it. */
 .nav-item.folder {
@@ -1702,6 +1714,19 @@ button.twisty:hover {
 .tab-glyph {
     position: relative;
     display: inline-flex;
+}
+
+/* Where the badge would be, ringed in the bar's colour so it reads as sitting
+   on the icon rather than touching it. */
+.tab-glyph .unread-dot {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    margin: 0;
+    border: 2px solid var(--bg-sunken);
+    box-sizing: content-box;
 }
 
 .tab-label {

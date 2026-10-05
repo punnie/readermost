@@ -14,6 +14,7 @@ import {
 
 import { DropStrip } from "./DropStrip";
 import { FeedIcon } from "./FeedIcon";
+import { UnreadCount } from "./UnreadCount";
 import { ContextMenu, MenuItem, MenuSeparator } from "./Menu";
 import {
   feedDragProps,
@@ -100,7 +101,7 @@ export function Sidebar({
         >
           <NavIcon icon={Users} />
           <span className="label">Shared by friends</span>
-          {riverUnread > 0 && <span className="count">{riverUnread}</span>}
+          <UnreadCount count={riverUnread} />
         </button>
       </div>
 
@@ -113,9 +114,7 @@ export function Sidebar({
         >
           <NavIcon icon={Inbox} />
           <span className="label">Unread</span>
-          {tree && tree.total_unread > 0 && (
-            <span className="count">{tree.total_unread}</span>
-          )}
+          <UnreadCount count={tree?.total_unread ?? 0} />
         </button>
 
         <button
@@ -190,7 +189,7 @@ export function Sidebar({
                 >
                   <NavIcon icon={isCollapsed ? Folder : FolderOpen} />
                   <span className="label">{category.title}</span>
-                  {category.unread > 0 && <span className="count">{category.unread}</span>}
+                  <UnreadCount count={category.unread} />
                 </button>
               </div>
 
@@ -214,7 +213,7 @@ export function Sidebar({
                         !
                       </span>
                     )}
-                    {feed.unread > 0 && <span className="count">{feed.unread}</span>}
+                    <UnreadCount count={feed.unread} />
                   </button>
                 ))}
             </div>
