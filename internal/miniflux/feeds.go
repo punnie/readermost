@@ -45,7 +45,8 @@ func (c *Client) UpdateCategory(ctx context.Context, id int64, title string) (*C
 	return &category, nil
 }
 
-// DeleteCategory removes a folder. Miniflux moves its feeds to the default one.
+// DeleteCategory removes a folder — and, despite what Miniflux's issue tracker
+// says, its feeds with it. Callers move the feeds out first.
 func (c *Client) DeleteCategory(ctx context.Context, id int64) error {
 	return c.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/categories/%d", id), nil, nil)
 }
