@@ -20,17 +20,6 @@ function hostOf(url: string): string {
   }
 }
 
-/**
- * The sharer's own words, separated from the link markup the server appends.
- * A share is composed as "note\n\n[title](url)", so anything before the blank
- * line is what the person actually said.
- */
-function noteOf(item: SharedItem): string {
-  if (!item.link?.from_readermost) return item.message;
-  const split = item.message.indexOf("\n\n");
-  return split === -1 ? "" : item.message.slice(0, split).trim();
-}
-
 /** Whether the reader already follows this feed, answered from the loaded tree. */
 function isSubscribed(tree: Tree | undefined, feedUrl?: string): boolean {
   if (!tree || !feedUrl) return false;
@@ -60,7 +49,8 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
   }
 
   const name = item.author.display_name || item.author.username;
-  const note = noteOf(item);
+  // The server separates the sharer's words from the link markup.
+  const note = item.link?.note ?? "";
   const data = article.data;
   const feedUrl = data?.feed_url || item.link?.feed_url;
   const feedTitle = data?.feed_title || item.link?.feed_title || "";
