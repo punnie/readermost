@@ -39,7 +39,8 @@ export default defineConfig({
         navigateFallback: "index.html",
         // Without this the service worker answers API and OAuth requests with
         // the app shell, and login fails in a way that looks like a server bug.
-        navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
+        // /s/ is the server's redirect from a Mattermost post to its river entry.
+        navigateFallbackDenylist: [/^\/api\//, /^\/auth\//, /^\/s\//],
         // Deliberately no runtime caching of /api: those responses are
         // per-user and authenticated. Offline data comes from the persisted
         // query cache instead, which clears in one call on logout.
@@ -56,6 +57,7 @@ export default defineConfig({
     proxy: {
       "/api": { target: "http://localhost:8080", changeOrigin: false },
       "/auth": { target: "http://localhost:8080", changeOrigin: false },
+      "/s/": { target: "http://localhost:8080", changeOrigin: false },
     },
   },
   build: {

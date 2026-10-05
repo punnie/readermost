@@ -93,6 +93,8 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.Handle("POST /api/shared/read-all", s.mutating(s.handleMarkRiverReadAll))
 	mux.Handle("GET /api/shared/{id}/thread", s.protected(s.handleThread))
 	mux.Handle("POST /api/shared/{id}/comment", s.mutating(s.handleComment))
+	// Backlinks from Mattermost posts. Not under /api: a person follows these.
+	mux.HandleFunc("GET /s/{key}", s.handleShareLink)
 
 	return mux
 }
