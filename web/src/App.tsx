@@ -47,6 +47,7 @@ import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
 import { forgetReadingPrefs } from "./reading";
+import { forgetPositions } from "./positions";
 import { pathFor, pathForSearch, routeFrom, sameSelection } from "./routes";
 import { readSort, shuffle, writeSort, type SortOrder } from "./sort";
 import {
@@ -862,6 +863,7 @@ export function App() {
         queryClient.clear();
         await clearPersistedCache();
         forgetReadingPrefs();
+        forgetPositions();
         window.location.href = "/";
       });
   };
@@ -927,7 +929,7 @@ export function App() {
             />
           }
         >
-          <div className="mobile-scroller">
+          <div className={`mobile-scroller ${showingArticle ? "reading" : ""}`}>
             {/*
               The gesture surface is inside the scroller, never the scroller
               itself: transforming a scrolling container is what made iOS

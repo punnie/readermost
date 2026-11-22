@@ -112,6 +112,40 @@
     display: none;
 }
 
+/* The one exception: the article being read. A long article needs a visible
+   sense of how far through it you are and how much is left, which nothing
+   else on screen gives. Thin and drawn in the border colours, so it reads as
+   a progress gauge rather than a gutter. On a phone the shared scroller only
+   shows it while an article is open, not over the list. */
+.reader,
+.mobile-scroller.reading {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+/* Older WebKit ignores the standard properties above. */
+.reader::-webkit-scrollbar,
+.mobile-scroller.reading::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+}
+
+.reader::-webkit-scrollbar-track,
+.mobile-scroller.reading::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.reader::-webkit-scrollbar-thumb,
+.mobile-scroller.reading::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 4px;
+}
+
+.reader::-webkit-scrollbar-thumb:hover,
+.mobile-scroller.reading::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
+}
+
 html,
 body,
 #root {

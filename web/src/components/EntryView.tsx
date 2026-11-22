@@ -4,6 +4,7 @@ import { ExternalLink, Star } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { formatDate, formatDateTime } from "../format";
 import { Thread } from "./Thread";
+import { useReadingPosition } from "../positions";
 import type { Entry, ShareLookup } from "../types";
 
 interface Props {
@@ -30,6 +31,8 @@ export function EntryView({
   onDiscuss,
 }: Props) {
   const discussionRef = useRef<HTMLElement>(null);
+  // Each article opens where it was left, or at the top.
+  const paneRef = useReadingPosition<HTMLDivElement>(entry ? `entry:${entry.id}` : undefined);
 
   useEffect(() => {
     if (focusDiscussion > 0) {
@@ -56,7 +59,7 @@ export function EntryView({
     shared?.author?.display_name || shared?.author?.username || "someone";
 
   return (
-    <div className="pane reader">
+    <div className="pane reader" ref={paneRef}>
       <article className="article">
         <h2>
           <a href={entry.url} target="_blank" rel="noreferrer noopener">
