@@ -40,9 +40,11 @@ import { MobileLayout } from "./components/MobileLayout";
 import { MobileArticleBar, MobileListBar } from "./components/MobileTopBar";
 import { MoreSheet } from "./components/MoreSheet";
 import { TabBar } from "./components/TabBar";
+import { ReadingBar } from "./components/ReadingBar";
+import { UpNext, type NextItem } from "./components/UpNext";
 import { useIsMobile } from "./useIsMobile";
 import { useViewportHeight } from "./useViewportHeight";
-import { useSwipeNavigation } from "./swipe";
+import { usePullToAdvance, useReadingScroll } from "./scrolling";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
@@ -174,7 +176,7 @@ export function App() {
   const showingArticle =
     selection.kind === "shared" ? Boolean(route.postID) : selectedEntryId !== undefined;
 
-  const articleRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const restoring = useIsRestoring();
 
   // Live shared-channel updates, once we know who we are.
@@ -230,7 +232,7 @@ export function App() {
     enabled: Boolean(searchRoute) && debouncedQuery.trim().length > 1,
   });
 
-  /** Results behave as a list, so j/k and swipe traverse them like any other. */
+  /** Results behave as a list, so j/k and next/previous traverse them like any other. */
   const searchResults = searchEntries.data?.entries ?? [];
 
   const openSearchEntry = useCallback(
@@ -553,12 +555,79 @@ export function App() {
   const currentURL =
     selection.kind === "shared" ? selectedSharedItem?.link?.url : selectedEntry?.url;
 
-  // The same traversal the keyboard uses, driven by a finger.
-  useSwipeNavigation(articleRef, {
-    onPrevious: () => move(-1),
-    onNext: () => move(1),
-    enabled: isMobile && showingArticle,
+  /**
+   * Where the open item sits in whatever list move() walks, so the phone's
+   * controls can say what is next — and that there is nothing before the first.
+   */
+  const traversal = useMemo((): { hasPrevious: boolean; next?: NextItem } => {
+    let items: NextItem[];
+    let current: number;
+    if (searchRoute) {
+      items = searchResults.map((entry) => ({
+        title: entry.title,
+        source: entry.feed?.title,
+        minutes: entry.reading_time,
+      }));
+      current = searchResults.findIndex((entry) => entry.id === selectedEntryId);
+    } else if (selection.kind === "shared") {
+      items = sharedItems.map((item) => ({
+        title: item.link?.title || item.link?.url || item.message,
+        source: item.author.display_name || item.author.username,
+      }));
+      current = sharedItems.findIndex((item) => item.post_id === selectedSharedItem?.post_id);
+    } else {
+      items = list.map((entry) => ({
+        title: entry.title,
+        source: entry.feed?.title,
+        minutes: entry.reading_time,
+      }));
+      current = list.findIndex((entry) => entry.id === selectedEntryId);
+    }
+    // An article that has left the list (read, in an unread view) is followed
+    // by the list's first item, which is where move(1) goes from there.
+    return { hasPrevious: current > 0, next: items[current + 1] };
+  }, [searchRoute, searchResults, selection.kind, sharedItems, selectedSharedItem, list, selectedEntryId]);
+
+  /** The open item, named the way positions.ts names it. */
+  const articleKey =
+    selection.kind === "shared"
+      ? selectedSharedItem && `shared:${selectedSharedItem.post_id}`
+      : selectedEntry && `entry:${selectedEntry.id}`;
+
+  const readingOnPhone = isMobile && showingArticle;
+  const readingScroll = useReadingScroll(scrollerRef, readingOnPhone, articleKey);
+  const pull = usePullToAdvance(scrollerRef, {
+    enabled: readingOnPhone && traversal.next !== undefined,
+    onAdvance: () => move(1),
   });
+
+  /** A list swipe just changed something; offered back for a few seconds. */
+  const [toast, setToast] = useState<{ message: string; undo: () => void }>();
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(undefined), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const swipeEntry = useCallback(
+    (entry: Entry, action: "star" | "read") => {
+      if (action === "star") {
+        toggleStar.mutate(entry.id);
+        setToast({
+          message: entry.starred ? "Star removed" : "Starred",
+          undo: () => toggleStar.mutate(entry.id),
+        });
+        return;
+      }
+      const status = entry.status === "read" ? "unread" : "read";
+      setStatus.mutate({ ids: [entry.id], status });
+      setToast({
+        message: status === "read" ? "Marked read" : "Marked unread",
+        undo: () => setStatus.mutate({ ids: [entry.id], status: entry.status === "read" ? "read" : "unread" }),
+      });
+    },
+    [toggleStar, setStatus],
+  );
 
   // `g` is a prefix: g then u/a/s jumps between views.
   const pendingGoto = useRef(false);
@@ -825,6 +894,7 @@ export function App() {
         onSelect={openEntry}
         isLoading={entries.isLoading}
         title={selectionTitle(selection, tree.data)}
+        onSwipe={isMobile ? swipeEntry : undefined}
       />
     );
 
@@ -900,10 +970,7 @@ export function App() {
                     ? (selectedSharedItem?.link?.feed_title ?? "Shared")
                     : (selectedEntry?.feed?.title ?? selectionTitle(selection, tree.data))
                 }
-                starred={selectedEntry?.starred}
                 onBack={() => window.history.back()}
-                onStar={selectedEntry ? () => toggleStar.mutate(selectedEntry.id) : undefined}
-                onShare={selectedEntry ? () => setSharing(selectedEntry) : undefined}
                 menu={mobileMenu}
               />
             ) : (
@@ -916,6 +983,8 @@ export function App() {
             )
           }
           tabBar={
+            // While reading, the reading bar takes the tab bar's place.
+            showingArticle ? null : (
             <TabBar
               selection={selection}
               unread={tree.data?.total_unread ?? 0}
@@ -927,22 +996,67 @@ export function App() {
               }}
               onMore={() => setMoreOpen((open) => !open)}
             />
+            )
           }
         >
-          <div className={`mobile-scroller ${showingArticle ? "reading" : ""}`}>
-            {/*
-              The gesture surface is inside the scroller, never the scroller
-              itself: transforming a scrolling container is what made iOS
-              wobble sideways under a thumb.
-            */}
-            <div className="swipe-surface" ref={articleRef}>
-              {searchRoute && !showingArticle
-                ? searchPane
-                : showingArticle
-                  ? articlePane
-                  : listPane}
-            </div>
+          <div
+            className={`mobile-scroller ${showingArticle ? "reading" : ""}`}
+            ref={scrollerRef}
+          >
+            {searchRoute && !showingArticle ? searchPane : showingArticle ? articlePane : listPane}
+            {showingArticle && (
+              <UpNext
+                next={traversal.next}
+                pull={pull}
+                onAdvance={() => move(1)}
+                onBackToList={() => window.history.back()}
+              />
+            )}
           </div>
+
+          {showingArticle && (
+            <ReadingBar
+              hidden={readingScroll.hidden}
+              progress={readingScroll.progress}
+              onPrevious={traversal.hasPrevious ? () => move(-1) : undefined}
+              onNext={traversal.next ? () => move(1) : undefined}
+              starred={selectedEntry?.starred}
+              onStar={
+                selection.kind !== "shared" && selectedEntry
+                  ? () => toggleStar.mutate(selectedEntry.id)
+                  : undefined
+              }
+              onShare={
+                selection.kind !== "shared" && selectedEntry
+                  ? () => setSharing(selectedEntry)
+                  : undefined
+              }
+              read={selectedEntry?.status === "read"}
+              onToggleRead={
+                selection.kind !== "shared" && selectedEntry
+                  ? () =>
+                      setStatus.mutate({
+                        ids: [selectedEntry.id],
+                        status: selectedEntry.status === "read" ? "unread" : "read",
+                      })
+                  : undefined
+              }
+            />
+          )}
+
+          {toast && (
+            <div className="toast" role="status">
+              <span>{toast.message}</span>
+              <button
+                onClick={() => {
+                  toast.undo();
+                  setToast(undefined);
+                }}
+              >
+                Undo
+              </button>
+            </div>
+          )}
         </MobileLayout>
 
         {moreOpen && (
