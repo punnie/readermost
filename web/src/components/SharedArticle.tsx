@@ -4,6 +4,7 @@ import { ExternalLink, Star } from "lucide-react";
 import { api } from "../api";
 import { Avatar } from "./Avatar";
 import { Thread } from "./Thread";
+import { useReadingPosition } from "../positions";
 import { formatDate, timeAgo } from "../format";
 import type { SharedItem, Tree } from "../types";
 
@@ -38,6 +39,9 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
     queryFn: () => api.sharedArticle(item!.post_id),
     enabled: Boolean(item?.post_id),
   });
+  const paneRef = useReadingPosition<HTMLDivElement>(
+    item ? `shared:${item.post_id}` : undefined,
+  );
 
   if (!item) {
     return (
@@ -59,7 +63,7 @@ export function SharedArticle({ item, tree, onSubscribe }: Props) {
   const url = data?.url ?? item.link?.url;
 
   return (
-    <div className="pane reader">
+    <div className="pane reader" ref={paneRef}>
       <article className="article">
         <h2>
           {url ? (
