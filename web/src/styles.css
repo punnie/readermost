@@ -583,7 +583,8 @@ button.twisty:hover {
     width: 100%;
     border: none;
     border-bottom: 1px solid var(--border);
-    background: none;
+    /* Opaque, so a row being swiped covers the action track behind it. */
+    background: var(--bg);
     text-align: left;
     padding: 8px 12px;
     cursor: pointer;
@@ -1609,6 +1610,8 @@ button.twisty:hover {
 }
 
 .mobile-pane {
+    /* The reading bar and toasts float over the bottom of the pane. */
+    position: relative;
     flex: 1;
     min-height: 0;
     display: flex;
@@ -1619,7 +1622,7 @@ button.twisty:hover {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* The crux of the swipe fix. Without this the browser claims horizontal
+    /* What makes row swipes work. Without this the browser claims horizontal
      panning for itself and cancels the pointer stream before a drag completes,
      so the handler never fires. pan-y keeps vertical scrolling native and
      hands horizontal movement to us. */
@@ -1634,12 +1637,6 @@ button.twisty:hover {
     padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
-.swipe-surface {
-    /* Transformed while a swipe is in progress. Kept separate from the scroller
-     so moving it cannot disturb scrolling. */
-    min-height: 100%;
-    will-change: transform;
-}
 
 /* The scroller holds a pane that already scrolls on desktop; on a phone the
    scroller owns the scrolling and the pane just flows. */
@@ -1713,6 +1710,233 @@ button.twisty:hover {
     border: none;
     background: none;
     font-size: 18px;
+}
+
+/* ---------- list row swipes ---------- */
+
+/* Behind each row; shows through as the row slides, saying what letting go
+   will do. Dim while the swipe is short of acting, full once it would act. */
+.row-track {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-sunken);
+}
+
+.row-action {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 0 20px;
+    font-weight: 700;
+    font-size: 13px;
+    opacity: 0.55;
+    transition: opacity 120ms ease;
+}
+
+.row-action-star {
+    left: 0;
+    color: var(--star);
+}
+
+.row-action-read {
+    right: 0;
+    color: var(--accent);
+}
+
+.row-track[data-swipe="star"] .row-action-star,
+.row-track[data-swipe="read"] .row-action-read {
+    display: flex;
+}
+
+.row-track[data-swipe="star"] {
+    background: color-mix(in srgb, var(--star) 14%, var(--bg));
+}
+
+.row-track[data-swipe="read"] {
+    background: var(--accent-soft);
+}
+
+.row-track[data-armed] .row-action {
+    opacity: 1;
+}
+
+.row-track[data-armed][data-swipe="star"] {
+    background: color-mix(in srgb, var(--star) 28%, var(--bg));
+}
+
+.row-track[data-armed][data-swipe="read"] {
+    background: color-mix(in srgb, var(--accent) 24%, var(--bg));
+}
+
+/* ---------- reading bar ---------- */
+
+/* Takes the tab bar's place while an article is open, floating over the
+   pane so tucking it away gives the text the room rather than leaving a
+   gap. The progress line rides on its top edge, and stays peeking above the
+   bottom of the screen while the bar itself is tucked away. */
+.reading-bar {
+    touch-action: manipulation;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    min-height: 52px;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--bg-sunken);
+    border-top: 1px solid var(--border);
+    transition: transform 200ms ease;
+}
+
+.reading-bar.hidden {
+    transform: translateY(100%);
+}
+
+.reading-bar .bar-btn {
+    flex: 1;
+    max-width: 72px;
+}
+
+.bar-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.reading-progress {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform-origin: left;
+    pointer-events: none;
+}
+
+/* ---------- up next ---------- */
+
+.up-next {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin: 0;
+    padding: 20px 16px 32px;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: var(--bg-sunken);
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 180ms ease-out;
+}
+
+/* Lifted over the end of the article while being pulled, like a sheet. */
+.up-next.pulling {
+    position: relative;
+    box-shadow: 0 -6px 18px rgb(0 0 0 / 12%);
+}
+
+.up-next-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.up-next.armed .up-next-label {
+    color: var(--accent);
+}
+
+/* A ring that fills as the pull approaches the point where letting go acts. */
+.up-next-ring {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent) var(--fill, 0deg), var(--border) 0);
+}
+
+.up-next-ring::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: var(--bg-sunken);
+}
+
+.up-next-ring svg {
+    position: relative;
+}
+
+.up-next-title {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--accent);
+}
+
+.up-next-meta {
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+.up-next-end {
+    align-items: center;
+    text-align: center;
+    cursor: default;
+    color: var(--text-muted);
+}
+
+.up-next-end p {
+    margin: 0 0 8px;
+}
+
+/* ---------- toast ---------- */
+
+.toast {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 6px 6px 14px;
+    border-radius: 8px;
+    background: var(--text);
+    color: var(--bg);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+/* Clear of the reading bar, when it is showing. */
+.reading-bar:not(.hidden) ~ .toast {
+    bottom: calc(52px + 16px + env(safe-area-inset-bottom));
+}
+
+.toast button {
+    min-height: 36px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--bg);
+    font-weight: 700;
+    cursor: pointer;
 }
 
 /* ---------- tab bar ---------- */
@@ -1998,6 +2222,11 @@ button.twisty:hover {
     .spinning {
         animation: none;
         opacity: 0.6;
+    }
+
+    .reading-bar,
+    .up-next {
+        transition: none;
     }
 }
 

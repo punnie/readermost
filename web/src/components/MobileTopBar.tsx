@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ChevronLeft, Menu, Search, Share, Star } from "lucide-react";
+import { ChevronLeft, Menu, Search } from "lucide-react";
 
 interface ListBarProps {
   title: string;
@@ -35,22 +35,15 @@ export function MobileListBar({
 
 interface ArticleBarProps {
   subtitle: string;
-  starred?: boolean;
   onBack: () => void;
-  onStar?: () => void;
-  onShare?: () => void;
   menu: ReactNode;
 }
 
-/** The bar over an article: back, the two actions worth a tap, and the rest. */
-export function MobileArticleBar({
-  subtitle,
-  starred,
-  onBack,
-  onStar,
-  onShare,
-  menu,
-}: ArticleBarProps) {
+/**
+ * The bar over an article: back, where it is from, and the menu. The actions
+ * live in the reading bar at the bottom, where a thumb can reach them.
+ */
+export function MobileArticleBar({ subtitle, onBack, menu }: ArticleBarProps) {
   return (
     <header className="mobile-bar">
       <button
@@ -61,21 +54,6 @@ export function MobileArticleBar({
         <ChevronLeft size={26} aria-hidden="true" />
       </button>
       <h1 className="bar-title">{subtitle}</h1>
-
-      {onStar && (
-        <button
-          className={`bar-btn ${starred ? "starred" : ""}`}
-          aria-label={starred ? "Remove star" : "Star this article"}
-          onClick={onStar}
-        >
-          <Star size={21} fill={starred ? "currentColor" : "none"} aria-hidden="true" />
-        </button>
-      )}
-      {onShare && (
-        <button className="bar-btn" aria-label="Share" onClick={onShare}>
-          <Share size={20} aria-hidden="true" />
-        </button>
-      )}
       {menu}
     </header>
   );
