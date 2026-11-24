@@ -3,7 +3,7 @@
  * gets out of the way, the progress along its edge, and pulling past the end
  * of an article to go on to the next one.
  */
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 /** Downward travel, in pixels, before the bar tucks away. */
 export const HIDE_AFTER = 24;
@@ -191,4 +191,46 @@ export function usePullToAdvance(
   }, [ref, options.enabled]);
 
   return distance;
+}
+
+/** Each list's offset, for this session. Lists reload fresh, so no storage. */
+const listPositions = new Map<string, number>();
+
+/**
+ * Keeps a list's place on a phone, where the list and the article share one
+ * scroller. Without it, backing out of an article left the list wherever the
+ * article had been scrolled to.
+ *
+ * Takes the element itself rather than a ref: the scroller only appears once
+ * the app has finished loading, and an effect keyed on a ref never hears of it.
+ * `key` names the list on screen, or is undefined while an article is open.
+ * The offset is recorded as the list scrolls and put back when the list
+ * returns, before the browser paints, so there is no visible jump. A list
+ * never seen before starts at the top.
+ */
+export function useListPosition(
+  scroller: HTMLElement | null,
+  enabled: boolean,
+  key: string | undefined,
+) {
+  const showing = useRef<string | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    // Runs after the children's layout effects, so the article's own restore
+    // has already happened by the time the list stops recording.
+    showing.current = enabled ? key : undefined;
+    if (!scroller || !enabled || key === undefined) return;
+    scroller.scrollTop = listPositions.get(key) ?? 0;
+  }, [scroller, enabled, key]);
+
+  useEffect(() => {
+    if (!scroller || !enabled) return;
+    // Scroll events arrive after the frame that caused them, so one caused by
+    // opening an article lands once `showing` is already cleared.
+    const onScroll = () => {
+      if (showing.current !== undefined) listPositions.set(showing.current, scroller.scrollTop);
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, [scroller, enabled]);
 }
