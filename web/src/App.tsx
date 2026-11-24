@@ -44,7 +44,7 @@ import { ReadingBar } from "./components/ReadingBar";
 import { UpNext, type NextItem } from "./components/UpNext";
 import { useIsMobile } from "./useIsMobile";
 import { useViewportHeight } from "./useViewportHeight";
-import { usePullToAdvance, useReadingScroll } from "./scrolling";
+import { useListPosition, usePullToAdvance, useReadingScroll } from "./scrolling";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { useOnline } from "./offline";
 import { clearPersistedCache } from "./persist";
@@ -176,7 +176,13 @@ export function App() {
   const showingArticle =
     selection.kind === "shared" ? Boolean(route.postID) : selectedEntryId !== undefined;
 
-  const scrollerRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  // The same element as state too, for hooks that must hear when it appears.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const attachScroller = useCallback((element: HTMLDivElement | null) => {
+    scrollerRef.current = element;
+    setScroller(element);
+  }, []);
   const restoring = useIsRestoring();
 
   // Live shared-channel updates, once we know who we are.
@@ -596,6 +602,15 @@ export function App() {
 
   const readingOnPhone = isMobile && showingArticle;
   const readingScroll = useReadingScroll(scrollerRef, readingOnPhone, articleKey);
+  useListPosition(
+    scroller,
+    isMobile,
+    showingArticle
+      ? undefined
+      : searchRoute
+        ? `search:${searchRoute.query}:${JSON.stringify(searchRoute.scope ?? null)}`
+        : JSON.stringify(selection),
+  );
   const pull = usePullToAdvance(scrollerRef, {
     enabled: readingOnPhone && traversal.next !== undefined,
     onAdvance: () => move(1),
@@ -1001,7 +1016,7 @@ export function App() {
         >
           <div
             className={`mobile-scroller ${showingArticle ? "reading" : ""}`}
-            ref={scrollerRef}
+            ref={attachScroller}
           >
             {searchRoute && !showingArticle ? searchPane : showingArticle ? articlePane : listPane}
             {showingArticle && (
